@@ -1,6 +1,6 @@
 # Projenin Amacı
 Proje motion detection ile hareket eden nesnelerin tespitine odaklanır. Kullanıcıya bir arayüz sunar.
-<<<<<<< HEAD
+
 1. Videodan nesne respiti yapılır ( YOLOv9, YOLOv10, YOLO11)
 2. Aynı nesne kareler boyunca izlenir
 3. Bu bounding boxlar aracılığı ile hareketlilik analiz edilir. Bunun için ayrı bir algoritma yazmak gerekebilir.
@@ -26,31 +26,31 @@ Program Sürümleri:
 1. QT 6.9.1 
 2. QT Creator 17.0
  
-=======
-1- Videodan nesne respiti yapılır ( YOLOv9, YOLOv10, YOLO11)
-2- Aynı nesne kareler boyunca izlenir
-3- Bu bounding boxlar aracılığı ile hareketlilik analiz edilir. Bunun için ayrı bir algoritma yazmak gerekebilir.
-4- Algılanan hareket olayları gerçek zamanlı olarak takip edilir.
-5- İstatistikler ve sonuçlar dışa aktarılır.
+
+1. Videodan nesne respiti yapılır ( YOLOv9, YOLOv10, YOLO11)
+2. Aynı nesne kareler boyunca izlenir
+3. Bu bounding boxlar aracılığı ile hareketlilik analiz edilir. Bunun için ayrı bir algoritma yazmak gerekebilir.
+4. Algılanan hareket olayları gerçek zamanlı olarak takip edilir.
+5. İstatistikler ve sonuçlar dışa aktarılır.
 
 #Temel Özellikler
-1-Ana Pencere İskeleti
-2-Video Seçici
-3-Model Export / Import
-4-Model Seçme Paneli
-5-Nesne Seçme Paneli: Hangi sınıfların izleneceği belirlenir (checkbox).
-6-Hareket Analizi Ayarları: Min/max hız eşiği gibi parametreler.
-7-Process: Parametreleri onaylayıp pipeline ı tetikler.
-8-Başlat/Durdur: İşlem kontrolü, duraklatma/devam.
-9-Real-Time Ön İzleme
-10-Sonuç İstatistiklerini Kaydetme: ortalama hız, toplam hareket süresi, FPS gibi metrikleri CSV veya JSON olarak yazar.
-11-Sonuç Çıktılarını Kaydetme : Nesne ID, zaman damgası, pozisyon, hız bilgileri JSON veya CSV olarak dışa aktarılır.
+1.Ana Pencere İskeleti
+2.Video Seçici
+3.Model Export / Import
+4.Model Seçme Paneli
+5.Nesne Seçme Paneli: Hangi sınıfların izleneceği belirlenir (checkbox).
+6.Hareket Analizi Ayarları: Min/max hız eşiği gibi parametreler.
+7.Process: Parametreleri onaylayıp pipeline ı tetikler.
+8.Başlat/Durdur: İşlem kontrolü, duraklatma/devam.
+9.Real-Time Ön İzleme
+10.Sonuç İstatistiklerini Kaydetme: ortalama hız, toplam hareket süresi, FPS gibi metrikleri CSV veya JSON olarak yazar.
+11.Sonuç Çıktılarını Kaydetme : Nesne ID, zaman damgası, pozisyon, hız bilgileri JSON veya CSV olarak dışa aktarılır.
 
 Projeme yukarıdaki temel bileşenleri sırası ile eklemeye başlayacağım.
 -QT 6.9.1 
 -QT Creator 17.0
 
->>>>>>> 482ce8d (Terminal Dosya yükleme)
+
 # Geliştirme Yol Haritası
 1. Ana pencere, sinyal/slot omurgası
 2. Video Seçici widget ve OpenCV entegrasyonu
