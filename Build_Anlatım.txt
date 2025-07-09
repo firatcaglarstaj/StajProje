@@ -1,0 +1,54 @@
+Bu dokümanda Motion Detection projesini Qt Creator, MSYS2 ve OpenCV kullanarak derlemek ve çalıştırmak için gerekli adımları anlattım.
+# Gereksinimler
+1. MSYS2 (Windows için MinGW ortamı)
+2. Qt Creator
+3. OpenCV
+4. CMake
+5. Ninja 
+
+##  Kurulum Adımları (MSYS2)
+
+**1. MSYS2'yi İndir ve Yükle**
+
+MSYS2: https://www.msys2.org/
+
+**2. MSYS2 Paketlerini Yükle**
+Başlat → **MSYS2 MinGW 64-bit** terminalini açın, aşağıdaki komutları gir:
+
+pacman -Syu
+pacman -Su
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-gdb mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-winpthreads mingw-w64-x86_64-opencv mingw-w64-x86_64-qt6 mingw-w64-x86_64-qt6-tools mingw-w64-x86_64-qt6-multimedia 
+
+## Qt Creator Yapılandırması (MSYS2 Kit)
+
+**1. Qt Version Ayarı**
+- `Tools → Options → Build & Run → Qt Versions → Add`
+
+**2. Derleyici Ayarı**
+- `Tools → Options → Build & Run → Compilers → Add → MinGW`
+  - **C:** `C:\msys64\mingw64\bin\gcc.exe`
+  - **C++:** `C:\msys64\mingw64\bin\g++.exe`
+
+**3. Debugger Ayarı**
+- `Tools → Options → Build & Run → Debuggers → Add`
+
+**4. Kit Ayarı**
+- `Tools → Options → Build & Run → Kits → Add`
+  - **Name:** `MSYS2 Qt6 MinGW64`
+  - **Qt Version:** (az önce eklediğim MSYS2 Qt)
+  - **Compiler:** MSYS2 GCC, G++
+  - **Debugger:** MSYS2 GDB
+  - **CMake Generator:** `Ninja`
+
+---
+
+## Projeyi Aç, Derle ve Çalıştır
+
+1. Qt Creator içinde `CMakeLists.txt` dosyasını aç.
+2. Kit olarak `MSYS2 Qt6 MinGW64` seç.
+3. Menüden: 
+Build -> Run CMake
+Build -> Rebuild All
+
+NOT: Eğer DLL eksik hatası alırsaK:
+- `C:\msys64\mingw64\bin` içindeki `.dll` dosyalarını `.exe`'niN olduğu dizine kopyala.
