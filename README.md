@@ -1,6 +1,5 @@
 # Motion Detection Projesi
 
-Proje, hareket eden nesnelerin tespitine ve analizine odaklanan, kullanıcı dostu bir arayüz sunan gerçek zamanlı bir video analiz uygulamasıdır.
 
 ---
 
@@ -32,7 +31,7 @@ Projenin geliştirilmesi yukarıdaki bileşenlerin sırasıyla eklenmesiyle yap�
 
 ---
 
-## 🛠 Kullanılan Teknolojiler
+## Kullanılan Teknolojiler
 
 - **QT 6.9.1**
 - **QT Creator 17.0**
