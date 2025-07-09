@@ -23,20 +23,10 @@
    <bool>false</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QListView" name="listView_videos">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>40</y>
-      <width>111</width>
-      <height>251</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>60</x>
+      <x>50</x>
       <y>300</y>
       <width>88</width>
       <height>71</height>
@@ -285,16 +275,26 @@
      <string>00:00:00</string>
     </property>
    </widget>
-   <widget class="QGroupBox" name="groupBox">
+   <widget class="QListWidget" name="videoListWidget">
     <property name="geometry">
      <rect>
-      <x>160</x>
-      <y>10</y>
-      <width>851</width>
-      <height>441</height>
+      <x>40</x>
+      <y>40</y>
+      <width>111</width>
+      <height>251</height>
      </rect>
     </property>
-    <property name="title">
+   </widget>
+   <widget class="QLabel" name="videoLabel">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>20</y>
+      <width>841</width>
+      <height>431</height>
+     </rect>
+    </property>
+    <property name="text">
      <string/>
     </property>
    </widget>
