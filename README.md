@@ -1,57 +1,49 @@
-# Projenin Amacı
-Proje motion detection ile hareket eden nesnelerin tespitine odaklanır. Kullanıcıya bir arayüz sunar.
+# Motion Detection Projesi
 
-1. Videodan nesne respiti yapılır ( YOLOv9, YOLOv10, YOLO11)
-2. Aynı nesne kareler boyunca izlenir
-3. Bu bounding boxlar aracılığı ile hareketlilik analiz edilir. Bunun için ayrı bir algoritma yazmak gerekebilir.
-4. Algılanan hareket olayları gerçek zamanlı olarak takip edilir.
-5. İstatistikler ve sonuçlar dışa aktarılır.
+Proje, hareket eden nesnelerin tespitine ve analizine odaklanan, kullanıcı dostu bir arayüz sunan gerçek zamanlı bir video analiz uygulamasıdır.
 
-#Temel Özellikler
-1. Ana Pencere İskeleti
-2. Video Seçici
-3. Model Export / Import
-4. Model Seçme Paneli
-5. Nesne Seçme Paneli: Hangi sınıfların izleneceği belirlenir (checkbox).
-6. Hareket Analizi Ayarları: Min/max hız eşiği gibi parametreler.
-7. Process: Parametreleri onaylayıp pipeline ı tetikler.
-8. Başlat/Durdur: İşlem kontrolü, duraklatma/devam.
-9. Real-Time Ön İzleme
-10. Sonuç İstatistiklerini Kaydetme: ortalama hız, toplam hareket süresi, FPS gibi metrikleri CSV veya JSON olarak yazar.
-11. Sonuç Çıktılarını Kaydetme : Nesne ID, zaman damgası, pozisyon, hız bilgileri JSON veya CSV olarak dışa aktarılır.
+---
 
-Projeme yukarıdaki temel bileşenleri sırası ile eklemeye başlayacağım.
+##  Projenin Amacı
 
-Program Sürümleri:
-1. QT 6.9.1 
-2. QT Creator 17.0
- 
+- Videodan nesne tespiti yapılır (YOLOv9, YOLOv10, YOLOv11 gibi modellerle).
+- Algılanan nesneler video boyunca kare kare izlenir.
+- İzlenen nesnelerin hareket analizi gerçekleştirilir.
+- Hareket olayları gerçek zamanlı olarak takip edilir.
+- Sonuçlar ve istatistikler dışa aktarılır.
 
-1. Videodan nesne respiti yapılır ( YOLOv9, YOLOv10, YOLO11)
-2. Aynı nesne kareler boyunca izlenir
-3. Bu bounding boxlar aracılığı ile hareketlilik analiz edilir. Bunun için ayrı bir algoritma yazmak gerekebilir.
-4. Algılanan hareket olayları gerçek zamanlı olarak takip edilir.
-5. İstatistikler ve sonuçlar dışa aktarılır.
+---
 
-#Temel Özellikler
-1.Ana Pencere İskeleti
-2.Video Seçici
-3.Model Export / Import
-4.Model Seçme Paneli
-5.Nesne Seçme Paneli: Hangi sınıfların izleneceği belirlenir (checkbox).
-6.Hareket Analizi Ayarları: Min/max hız eşiği gibi parametreler.
-7.Process: Parametreleri onaylayıp pipeline ı tetikler.
-8.Başlat/Durdur: İşlem kontrolü, duraklatma/devam.
-9.Real-Time Ön İzleme
-10.Sonuç İstatistiklerini Kaydetme: ortalama hız, toplam hareket süresi, FPS gibi metrikleri CSV veya JSON olarak yazar.
-11.Sonuç Çıktılarını Kaydetme : Nesne ID, zaman damgası, pozisyon, hız bilgileri JSON veya CSV olarak dışa aktarılır.
+##  Temel Özellikler
 
-Projeme yukarıdaki temel bileşenleri sırası ile eklemeye başlayacağım.
--QT 6.9.1 
--QT Creator 17.0
+- **Ana Pencere İskeleti**
+- **Video Seçici**
+- **Model Export / Import**
+- **Model Seçme Paneli**
+- **Nesne Seçme Paneli** *(Checkbox ile hangi nesnelerin izleneceği belirlenir)*
+- **Hareket Analizi Ayarları** *(Min/max hız eşiği vb.)*
+- **Process** *(Parametreleri onaylayarak analizi başlatır)*
+- **Başlat/Durdur** *(Analizi kontrol eder; duraklatma ve devam ettirme sağlar)*
+- **Real-Time Ön İzleme**
+- **Sonuç İstatistiklerini Kaydetme** *(Ortalama hız, toplam hareket süresi, FPS gibi metrikleri CSV veya JSON olarak dışa aktarır)*
+- **Sonuç Çıktılarını Kaydetme** *(Nesne ID, zaman damgası, pozisyon, hız bilgileri JSON veya CSV olarak dışa aktarılır)*
 
+Projenin geliştirilmesi yukarıdaki bileşenlerin sırasıyla eklenmesiyle yapılacaktır.
 
-# Geliştirme Yol Haritası
+---
+
+## 🛠 Kullanılan Teknolojiler
+
+- **QT 6.9.1**
+- **QT Creator 17.0**
+- **OpenCV**
+- **YOLO Modelleri (YOLOv9, YOLOv10, YOLOv11)**
+
+---
+
+##  Geliştirme Yol Haritası
+
+Projenin geliştirilmesi aşağıdaki aşamalarda gerçekleştirilecektir:
 1. Ana pencere, sinyal/slot omurgası
 2. Video Seçici widget ve OpenCV entegrasyonu
 3. Model Export/Import, doğrulama
@@ -64,6 +56,7 @@ Projeme yukarıdaki temel bileşenleri sırası ile eklemeye başlayacağım.
 
 Uygulama yerel çalışır, video akışları ve analiz sonuçları sunucuya gönderilmez. 
 
-# Örnek Kullanım Senaryosu
+
+## Örnek Kullanım Senaryosu
 Alışveriş merkezi otoparkından alınmış güvenlik kamerası kaydını uygulamaya yükledik. Ön izleme penceresi videonun seçildiğini onaylar. Ardından "Model Ekle" düğmesiyle yolov8n.onnx dosyasını içe aktarıp yalnızca car, truck ve bus sınıflarını işaretledik, böylece yayalar ve bisikletliler filtrelenir. Hareket analiz penceresinde minimum hız eşiğini 0.5 m/s, park edilmiş sayılacak minimum bekleme süresini ise 15 dakika olarak kaydedebiliriz. Başlat tuşuna bastığımızda uygulama kareleri çözüp GPU’da nesne tespiti yapar, Tracker algoritması ile araçları izler ve her kimlik için hız hesaplayarak gerçek-zamanlı ön izlemede duran araçları mavi, hareket halindekileri kırmızı box ile vurgular. Sağ panelde toplam araç sayısı, ortalama hız ve 15 dakikadan uzun park eden araç sayısı canlı olarak güncellenirken, akışı istediğimiz anda durdurulup devam ettirilebilir. İşlem tamamlandığında stats.csv ve json dosyaları dışa aktarılır. ilki araç başına giriş-çıkış zamanları ve toplam park süresini, ikincisi ise zaman damgalı konum ve hız dizilerini içerir. Örneğin iki saatlik kayıtta 127 araç algılanmış, bunlardan 14’ü 15 dakikadan uzun süre park halinde kalmış gibi bilgileri içerir.
 İstenilen kullanım senaryosu bu şekilde
