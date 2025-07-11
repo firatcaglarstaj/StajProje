@@ -52,3 +52,33 @@ compile_commands.json
 *creator.user*
 
 *_qmlcache.qrc
+
+# Derleme çıktıları
+build/
+*.o
+*.obj
+*.exe
+*.dll
+*.user
+*.pro.user*
+*.log
+*.tmp
+*.bak
+*.cache
+*.pyc
+*.pdb
+
+# Qt ile ilgili
+*.qrc.depends
+*.qrc
+Makefile*
+CMakeFiles/
+CMakeCache.txt
+*.autosave
+*.moc
+*.qmake.stash
+*.qmlproject.user
+
+# MacOS / Windows özel
+.DS_Store
+Thumbs.db
