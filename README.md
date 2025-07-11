@@ -62,13 +62,13 @@ Alışveriş merkezi otoparkından alınmış güvenlik kamerası kaydını uygu
 
 ## Python ile Hibrit Yaklaşım
 ### Python Rolü
- **Model Tipini Belirler**
- **Parametreleri Ayarlar**
- **Konfigürasyonu Döndürür**
+ - **Model Tipini Belirler**
+ - **Parametreleri Ayarlar**
+ - **Konfigürasyonu Döndürür**
  ### C++ Rolü
-  **Real-time frame processing**
- **OpenCV optimizasyonları**
- **Performans kontrolü**
+ - **Real-time frame processing**
+ - **OpenCV optimizasyonları**
+ - **Performans kontrolü**
 
  ## Model Seçme Sisteminin Çalışma Akışı
 1. Model Seçimi
