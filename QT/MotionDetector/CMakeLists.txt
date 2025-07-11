@@ -5,7 +5,8 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
 find_package(OpenCV REQUIRED)
-
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
 qt_standard_project_setup()
 
 qt_add_executable(MotionDetection
@@ -14,17 +15,19 @@ qt_add_executable(MotionDetection
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    pythonScriptModel.cpp
+    pythonScriptModel.h
+    motiondetector.h
+    motiondetector.cpp
 )
 
 target_link_libraries(MotionDetection
     PRIVATE
         Qt::Core
         Qt::Widgets
-        Qt::Multimedia
-        Qt::MultimediaWidgets
         ${OpenCV_LIBS}
-)
-
+        ${PYTHON_LIBRARIES}
+    )
 include(GNUInstallDirs)
 
 install(TARGETS MotionDetection
