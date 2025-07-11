@@ -59,3 +59,20 @@ Uygulama yerel çalışır, video akışları ve analiz sonuçları sunucuya gö
 ## Örnek Kullanım Senaryosu
 Alışveriş merkezi otoparkından alınmış güvenlik kamerası kaydını uygulamaya yükledik. Ön izleme penceresi videonun seçildiğini onaylar. Ardından "Model Ekle" düğmesiyle yolov8n.onnx dosyasını içe aktarıp yalnızca car, truck ve bus sınıflarını işaretledik, böylece yayalar ve bisikletliler filtrelenir. Hareket analiz penceresinde minimum hız eşiğini 0.5 m/s, park edilmiş sayılacak minimum bekleme süresini ise 15 dakika olarak kaydedebiliriz. Başlat tuşuna bastığımızda uygulama kareleri çözüp GPU’da nesne tespiti yapar, Tracker algoritması ile araçları izler ve her kimlik için hız hesaplayarak gerçek-zamanlı ön izlemede duran araçları mavi, hareket halindekileri kırmızı box ile vurgular. Sağ panelde toplam araç sayısı, ortalama hız ve 15 dakikadan uzun park eden araç sayısı canlı olarak güncellenirken, akışı istediğimiz anda durdurulup devam ettirilebilir. İşlem tamamlandığında stats.csv ve json dosyaları dışa aktarılır. ilki araç başına giriş-çıkış zamanları ve toplam park süresini, ikincisi ise zaman damgalı konum ve hız dizilerini içerir. Örneğin iki saatlik kayıtta 127 araç algılanmış, bunlardan 14’ü 15 dakikadan uzun süre park halinde kalmış gibi bilgileri içerir.
 İstenilen kullanım senaryosu bu şekilde
+
+## Python ile Hibrit Yaklaşım
+### Python Rolü
+ **Model Tipini Belirler**
+ **Parametreleri Ayarlar**
+ **Konfigürasyonu Döndürür**
+ ### C++ Rolü
+  **Real-time frame processing**
+ **OpenCV optimizasyonları**
+ **Performans kontrolü**
+
+ ## Model Seçme Sisteminin Çalışma Akışı
+1. Model Seçimi
+2. Python Config: Python script konfigürasyonu döndürür
+3. C++ tarafında OpenCV detectorları başlatılır
+4. Her frame C++ ile işlenir
+5. Motion detection sonuçları gerçek zamanlı
