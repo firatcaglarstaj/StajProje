@@ -76,3 +76,33 @@ Alışveriş merkezi otoparkından alınmış güvenlik kamerası kaydını uygu
 3. C++ tarafında OpenCV detectorları başlatılır
 4. Her frame C++ ile işlenir
 5. Motion detection sonuçları gerçek zamanlı
+
+## Asenkron Mimari 
+- Proje python ve C++ ile beraber çalışacak. Bu yüzden hız farkından dolayı görüntünün akıcı bir şekilde işlenmesi için asenkron, katmanlı bir mimari tasarlandı
+- DATA LAYER -> VIDEO PROCESSING (C++)  │  AI PROCESSING (Python)  -> COMMUNICATION LAYER -> UI LAYER (Qt C++)   
+### DATA LAYER 
+• OpenCV (Video I/O)  • Ultralytics YOLO                 
+• Qt Framework        • NumPy/OpenCV       
+### VIDEO PROCESSING (C++)  │  AI PROCESSING (Python) 
+• C++ tarafında VideoController, Frame Management , Threading
+• Python Tarafında • YOLO Inference • Result Formatting • Model Management 
+### COMMUNICATION LAYER
+• TCP Socket + JSON Protocol (Qt TCP) 
+### UI LAYER (Qt C++) 
+• Video Display • Controls • Status • Results Visualization 
+
+### Thread Mimarisi Veri Akışı
+1. **Video Thread:** Video frame i okur 
+2. **Display Thread:** Frame i anında UI da gösterir 
+3. **TCP Thread:** Her 6. frame i Python'a gönderir 
+4. **Python Process:** YOLO inference yapar 
+5. **TCP Thread:** Sonucu alır ve cache ler
+6. **Display Thread:** En güncel AI sonucunu frame üzerine çizer
+   
+#### **Mesaj Tipleri:**
+- **frame_request:** C++ → Python (frame analizi için)
+- **detection_result:** Python → C++ (AI sonuçları)
+- **control_command:** C++ → Python (model değiştirme vb.)
+- **status_update:** Python → C++ (durum bilgileri)
+- **error:** Her iki yön (hata bildirimleri)
+- **heartbeat:** Bağlantı canlılık kontrolü
