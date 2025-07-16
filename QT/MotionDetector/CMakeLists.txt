@@ -1,44 +1,48 @@
 cmake_minimum_required(VERSION 3.19)
 project(MotionDetection LANGUAGES CXX)
 
+# C++ standardını belirt
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Qt6'yı bul
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
+
+# OpenCV'yi bul
 find_package(OpenCV REQUIRED)
-find_package(PythonLibs REQUIRED)
-include_directories(${PYTHON_INCLUDE_DIRS})
+
+# Qt setup
 qt_standard_project_setup()
 
+# SADECE .cpp ve .ui dosyaları ekleniyor!
 qt_add_executable(MotionDetection
     WIN32 MACOSX_BUNDLE
+
+    # Ana dosyalar
     main.cpp
     mainwindow.cpp
-    mainwindow.h
+
+    # Core dosyaları (sadece .cpp)
+    core/VideoController.cpp
+
+    # UI dosyası
     mainwindow.ui
-    pythonScriptModel.cpp
-    pythonScriptModel.h
-    motiondetector.h
-    motiondetector.cpp
 )
 
-target_link_libraries(MotionDetection
-    PRIVATE
-        Qt::Core
-        Qt::Widgets
-        ${OpenCV_LIBS}
-        ${PYTHON_LIBRARIES}
-    )
-include(GNUInstallDirs)
-
-install(TARGETS MotionDetection
-    BUNDLE  DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+# Include directories - src klasörünü ekle
+target_include_directories(MotionDetection PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
 )
 
-qt_generate_deploy_app_script(
-    TARGET MotionDetection
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
+# Link libraries
+target_link_libraries(MotionDetection PRIVATE
+    Qt6::Core
+    Qt6::Widgets
+    ${OpenCV_LIBS}
 )
-install(SCRIPT ${deploy_script})
+
+# Debug için
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(MotionDetection PRIVATE DEBUG_MODE)
+endif()

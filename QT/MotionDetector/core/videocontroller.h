@@ -34,6 +34,8 @@ private:
     cv::VideoCapture videoCapture; // OpenCV video capture objesi
     VideoInfo currentVideoInfo;
     PlaybackState currentState;
+    FrameData lastFrameData;
+
 
     //Frame Tracking için
     int nextFrameId; //Bir sonraki frame e atanacak ID
@@ -89,11 +91,13 @@ public:
      */
     FrameData getNextFrame();
 
+    FrameData getLastFrame() const; // Motion tespit edildiğinde bunu çağırarak tespit edilen frame i getirebilirim
+
     /*
     Mevcut frame i al (pozisyonu değiştirmeden)
     Mevcut frame data döndür
      */
-    FrameData getCurrentFrame();
+    FrameData getCurrentFrame(); ///////
 
     // Navigasyon İşlemleri için
 
@@ -123,6 +127,7 @@ public:
     PerformanceStats getPerformanceStats() const { return performanceStats; }
     int getTotalFrames() const { return currentVideoInfo.totalFrames; }
     double getDuration() const { return currentVideoInfo.duration; }
+    double getProgress() const { return currentVideoInfo.getProgress(); }
     double getCurrentTime() const { return currentVideoInfo.currentTime; }
     double getFPS() const { return currentVideoInfo.fps; }
 
@@ -133,10 +138,15 @@ signals:
     void videoClosed(); // video kapandığında active edilir
     void playbackStateChanged(PlaybackState newState);
     void performanceUpdated(const PerformanceStats& stats); // Perfomance istatistikleri güncelleğinde active olur, stats = güncellenen performans bilgileri
-    void onPlaybackTimer(); //Playback timer ı tetiklendiğinde çağrılır
-    void onPerformanceTimer(); // Performans hesaplama timer ı tetiklendiğinde çağrılır
+    void progressChanged(double progress);
+
 
 private:
+
+    void onPlaybackTimer(); //Playback timer ı tetiklendiğinde çağrılır
+    void onPerformanceTimer(); // Performans hesaplama timer ı tetiklendiğinde çağrılır
+    void handleError(const QString& errorMessage);
+
     /*
     Video bilgilerini OpenCV'den oku ve güncelle
     Başarılı ise true
@@ -159,7 +169,7 @@ private:
 
     void startTimers(); //Timer ları başlat
 
-    void stopTimers(); // Timer'ları durdur
+    void stopTimers(); // Timer durdur
 
     void updatePerformanceStats(); //Performance istatistiklerini güncelle
 

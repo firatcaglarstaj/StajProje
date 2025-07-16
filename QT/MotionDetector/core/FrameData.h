@@ -25,8 +25,13 @@ struct FrameData {
 
     // Okuma kolaylığı için bir yapı
     QString toString() const {
-        return QString("Frame [ID: %1, Time: %.3fs, Number: &2, Size: %3 x %4, Processed: %5]").arg(frameId).arg(timeStamp, 0, 'f', 3).arg(frameNumber)
-            .arg(frame.cols).arg(frame.rows). arg(processed);
+        return QString("Frame[ID:%1, Time:%2s, Number:%3, Size:%4x%5, Processed:%6]")
+        .arg(frameId)
+            .arg(timeStamp, 0, 'f', 3)
+            .arg(frameNumber)
+            .arg(frame.cols)
+            .arg(frame.rows)
+            .arg(processed ? "Yes" : "No");
     }
 
     double getSizeMB() const {
@@ -55,14 +60,25 @@ struct VideoInfo {
     size_t fileSize = 0;        // Dosya boyutu (byte)
 
     // Video bilgilerini aynı şekilde okunabilir formatta döndür
-    QString toString() const{
-        return QString("Video[%1, %2x%3, %.1fFPS, %.1fs, %4 frames, %.1fMB]").arg(fileName).arg(width).arg(height).arg(fps, 0, 'f', 1)
-        .arg(duration, 0, 'f', 1).arg(totalFrames).arg(static_cast<double>(fileSize) / (1024.0 * 1024.0), 0, 'f', 1);
+    QString toString() const {
+        return QString("Video[%1, %2x%3, %4FPS, %5s, %6 frames, %7MB]")
+        .arg(fileName)
+            .arg(width)
+            .arg(height)
+            .arg(fps, 0, 'f', 1)
+            .arg(duration, 0, 'f', 1)
+            .arg(totalFrames)
+            .arg(static_cast<double>(fileSize) / (1024.0 * 1024.0), 0, 'f', 1);
     }
 
     // Video geçerli mi?
     bool isValid() const{
         return totalFrames > 0 && fps > 0 && width > 0 && height > 0;
+    }
+    // Progress hesapla (0.0 - 1.0)
+    double getProgress() const {
+        if (totalFrames <= 0) return 0.0;
+        return static_cast<double>(currentFrameNumber) / totalFrames;
     }
 };
 
