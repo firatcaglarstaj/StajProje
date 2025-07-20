@@ -1,4 +1,5 @@
 #include "videocontroller.h"
+#include "ai/yolocommunicator.h"
 #include <QFileInfo>
 #include <QDir>
 #include <QApplication>
@@ -12,7 +13,7 @@ VideoController::VideoController(QObject *parent)
     , playbackTimer(nullptr)
     , fpsCalculationTimer(nullptr)
 {
-     // Performance timer ını başlat
+    // Performance timer ını başlat
     performanceTimer.start();
     performanceStats.startTime = QDateTime::currentDateTime();
 
@@ -181,6 +182,7 @@ FrameData VideoController::getNextFrame()
             return FrameData();
         }
 
+        lastFrameData = frameData;
         // Performance stats ı güncelle
         updatePerformanceStats();
 
@@ -204,6 +206,11 @@ FrameData VideoController::getNextFrame()
 }
 
 FrameData VideoController::getLastFrame() const
+{
+    return lastFrameData;
+}
+
+FrameData VideoController::getCurrentFrame()
 {
     return lastFrameData;
 }
@@ -244,137 +251,133 @@ void VideoController::setPlaybackSpeed(double speed)
     }
 
 }
-    void VideoController::onPlaybackTimer()
-    {
-        // Bir sonraki frame i al
-        FrameData frameData = getNextFrame();
+void VideoController::onPlaybackTimer()
+{
+    // Bir sonraki frame i al
+    FrameData frameData = getNextFrame();
 
-        if (frameData.isValid()) {
-            // Frame hazır signal ını emit et
-            emit frameReady(frameData);
+    if (frameData.isValid()) {
+        // Frame hazır signal ını emit et
+        emit frameReady(frameData);
 
-            // Progress güncellemesi
-            emit progressChanged(getProgress());
-        } else {
-            // Video bitti veya hata oluştu
-            qDebug() << "VideoController: Playback timer - daha fazla frame yok";
-            pause();
-        }
+        // Progress güncellemesi
+        emit progressChanged(getProgress());
+    } else {
+        // Video bitti veya hata oluştu
+        qDebug() << "VideoController: Playback timer - daha fazla frame yok";
+        pause();
     }
+}
 
-    void VideoController::onPerformanceTimer()// @TODO
-    {
+void VideoController::onPerformanceTimer()// @TODO
+{
 
+}
+
+bool VideoController::updateVideoInfo()
+{
+    if (!videoCapture.isOpened()) {
+        return false;
     }
+    try {
+        // OpenCV den video bilgilerini al
+        currentVideoInfo.totalFrames = static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_COUNT));
+        currentVideoInfo.fps = videoCapture.get(cv::CAP_PROP_FPS);
+        currentVideoInfo.width = static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH));
+        currentVideoInfo.height = static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT));
+        currentVideoInfo.currentFrameNumber = static_cast<int>(videoCapture.get(cv::CAP_PROP_POS_FRAMES));
+        currentVideoInfo.currentTime = videoCapture.get(cv::CAP_PROP_POS_MSEC) / 1000.0;
 
-    bool VideoController::updateVideoInfo()
-    {
-        if (!videoCapture.isOpened()) {
-            return false;
-        }
-        try {
-            // OpenCV den video bilgilerini al
-            currentVideoInfo.totalFrames = static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_COUNT));
-            currentVideoInfo.fps = videoCapture.get(cv::CAP_PROP_FPS);
-            currentVideoInfo.width = static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH));
-            currentVideoInfo.height = static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT));
-            currentVideoInfo.currentFrameNumber = static_cast<int>(videoCapture.get(cv::CAP_PROP_POS_FRAMES));
-            currentVideoInfo.currentTime = videoCapture.get(cv::CAP_PROP_POS_MSEC) / 1000.0;
-
-            // Duration hesapla
-            if (currentVideoInfo.fps > 0) {
-                currentVideoInfo.duration = currentVideoInfo.totalFrames / currentVideoInfo.fps;
-            }
-
-
-            // Dosya boyutunu al
-            QFileInfo fileInfo(currentVideoInfo.filePath);
-            currentVideoInfo.fileSize = fileInfo.size();
-
-            return true;
-
-        } catch (const cv::Exception& e) {
-            qDebug() << "VideoController: OpenCV exception in updateVideoInfo:" << e.what();
-            return false;
-        }
-    }
-
-    void VideoController::resetVideoInfo()
-    {
-        currentVideoInfo = VideoInfo();
-        nextFrameId = 0;
-    }
-
-    FrameData VideoController::createFrameData(const cv::Mat& frame)
-    {
-        try {
-            qDebug() << "VideoController: FrameData oluşturuluyor";
-
-            FrameData frameData;
-            frameData.frameId = nextFrameId++;
-            frameData.timeStamp = currentVideoInfo.currentTime;
-            frameData.frameNumber = currentVideoInfo.currentFrameNumber;
-            frameData.frame = frame.clone();
-            frameData.processed = false;
-
-            qDebug() << "VideoController: FrameData oluşturuldu - ID:" << frameData.frameId;
-
-            return frameData;
-
-        } catch (const cv::Exception& e) {
-            qDebug() << "VideoController: OpenCV exception in createFrameData:" << e.what();
-            return FrameData();
-        } catch (const std::exception& e) {
-            qDebug() << "VideoController: Exception in createFrameData:" << e.what();
-            return FrameData();
-        } catch (...) {
-            qDebug() << "VideoController: Unknown exception in createFrameData!";
-            return FrameData();
-        }
-    }
-
-    void VideoController::setState(PlaybackState newState)
-    {
-        if (currentState != newState) {
-            PlaybackState oldState = currentState;
-            currentState = newState;
-
-            qDebug() << "VideoController: Video durumu" << oldState << "iken" << newState<< "oldu";
-
-            // Signal emit et
-            emit playbackStateChanged(newState);
-        }
-    }
-
-    void VideoController::startTimers()
-    {
-
-    }
-
-    void VideoController::stopTimers()
-    {
-        if (playbackTimer) {
-            playbackTimer->stop();
+        // Duration hesapla
+        if (currentVideoInfo.fps > 0) {
+            currentVideoInfo.duration = currentVideoInfo.totalFrames / currentVideoInfo.fps;
         }
 
+
+        // Dosya boyutunu al
+        QFileInfo fileInfo(currentVideoInfo.filePath);
+        currentVideoInfo.fileSize = fileInfo.size();
+
+        return true;
+
+    } catch (const cv::Exception& e) {
+        qDebug() << "VideoController: OpenCV exception in updateVideoInfo:" << e.what();
+        return false;
+    }
+}
+
+void VideoController::resetVideoInfo()
+{
+    currentVideoInfo = VideoInfo();
+    nextFrameId = 0;
+}
+
+FrameData VideoController::createFrameData(const cv::Mat& frame)
+{
+    try {
+        qDebug() << "VideoController: FrameData oluşturuluyor";
+
+        FrameData frameData;
+        frameData.frameId = nextFrameId++;
+        frameData.timeStamp = currentVideoInfo.currentTime;
+        frameData.frameNumber = currentVideoInfo.currentFrameNumber;
+        frameData.frame = frame.clone();
+        frameData.processed = false;
+
+        qDebug() << "VideoController: FrameData oluşturuldu - ID:" << frameData.frameId;
+
+        return frameData;
+
+    } catch (const cv::Exception& e) {
+        qDebug() << "VideoController: OpenCV exception in createFrameData:" << e.what();
+        return FrameData();
+    } catch (const std::exception& e) {
+        qDebug() << "VideoController: Exception in createFrameData:" << e.what();
+        return FrameData();
+    } catch (...) {
+        qDebug() << "VideoController: Unknown exception in createFrameData!";
+        return FrameData();
+    }
+}
+
+void VideoController::setState(PlaybackState newState)
+{
+    if (currentState != newState) {
+        PlaybackState oldState = currentState;
+        currentState = newState;
+
+        qDebug() << "VideoController: Video durumu" << oldState << "iken" << newState<< "oldu";
+
+        // Signal emit et
+        emit playbackStateChanged(newState);
+    }
+}
+
+void VideoController::startTimers()
+{
+
+}
+
+void VideoController::stopTimers()
+{
+    if (playbackTimer) {
+        playbackTimer->stop();
     }
 
-    void VideoController::updatePerformanceStats()
-    {
+}
 
+void VideoController::updatePerformanceStats()
+{
+
+}
+
+bool VideoController::isValidVideoFile(const QString &filePath)
+{
+    QFileInfo fileInfo(filePath);
+
+    if(!fileInfo.exists()) {
+        qDebug() << "VideoController: Dosya yok:" << filePath;
+        return false;
     }
-
-    bool VideoController::isValidVideoFile(const QString &filePath)
-    {
-        QFileInfo fileInfo(filePath);
-
-        if(!fileInfo.exists()) {
-            qDebug() << "VideoController: Dosya yok:" << filePath;
-            return false;
-            }
-        else return true;
-    }
-
-
-
-
+    else return true;
+}

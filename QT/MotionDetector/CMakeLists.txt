@@ -5,16 +5,14 @@ project(MotionDetection LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Qt6'yı bul
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 
-# OpenCV'yi bul
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
 find_package(OpenCV REQUIRED)
 
-# Qt setup
+
 qt_standard_project_setup()
 
-# SADECE .cpp ve .ui dosyaları ekleniyor!
+
 qt_add_executable(MotionDetection
     WIN32 MACOSX_BUNDLE
 
@@ -22,11 +20,16 @@ qt_add_executable(MotionDetection
     main.cpp
     mainwindow.cpp
 
-    # Core dosyaları (sadece .cpp)
+    # Core dosyaları
     core/VideoController.cpp
 
     # UI dosyası
     mainwindow.ui
+    python/yolo_service.py
+    python/detection_models.py
+    ai/yolocommunicator.h ai/yolocommunicator.cpp
+    ai/DetectionData.h
+
 )
 
 # Include directories - src klasörünü ekle
@@ -39,6 +42,7 @@ target_include_directories(MotionDetection PRIVATE
 target_link_libraries(MotionDetection PRIVATE
     Qt6::Core
     Qt6::Widgets
+    Qt6::Network
     ${OpenCV_LIBS}
 )
 

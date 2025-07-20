@@ -1,132 +1,171 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "ai/DetectionData.h"
+#include "core/videocontroller.h"
 #include <QMainWindow>
-#include <QtCore>
-#include <QtGui>
-#include <QMainWindow>
-#include <QtMultimediaWidgets/qvideowidget.h>
-#include <QtCore>
-#include <QtGui>
-#include <QtWidgets>
-#include <QDebug>
 #include <QTimer>
-#include <QShortcut>
-#include <QMenu>
-#include <QInputDialog>
-#include <QKeySequence>
-#include <QThread>
-#include<opencv2/opencv.hpp>
-#include "core/FrameData.h"
-#include "core/ThreadQueue.h"
-#include "core/VideoController.h"
+#include <QElapsedTimer>
+#include <QLabel>
+#include <QProgressBar>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QListWidgetItem>
+#include <QMap>
 
+#include <opencv2/opencv.hpp> // OpenCV nin ana başlık dosyası
+
+// Qt UI sınıfının ileriye dönük bildirimi (forward declaration)
 QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
+namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+// Kendi özel sınıflarımızın ileriye dönük bildirimleri.
+// Bu, başlık dosyasına tam sınıf tanımını dahil etme ihtiyacını ortadan kaldırır
+// ve derleme süresini kısaltır.
+class VideoController;
+class FrameQueue;
+class YOLOCommunicator;
+
+// Sinyaller ve slotlar arasında veri taşımak için kullanılan struct ların
+// ileriye dönük bildirimleri.
+struct FrameData;
+struct VideoInfo;
+struct PerformanceStats;
+struct DetectionResult;
+struct Detection;
+
+/**
+ * @class MainWindow
+ * @brief Uygulamanın ana penceresini yöneten sınıf.
+ *
+ * Bu sınıf, kullanıcı arayüzü (UI) elemanlarını oluşturur, video kontrolü,
+ * YOLO servisi ile iletişim ve genel uygulama mantığını yönetir.
+ * Video oynatma, duraklatma, hız ayarı gibi kontrolleri sağlar ve
+ * gelen video frame lerini işleyerek ekranda gösterir.
+ */
 class MainWindow : public QMainWindow
 {
-    Q_OBJECT
+    Q_OBJECT // Qt nin sinyal/slot mekanizması için zorunlu makro
 
 public:
+    /**
+     * @brief MainWindow sınıfının kurucu fonksiyonu.
+     * @param parent Üst QWidget nesnesi.
+     */
     MainWindow(QWidget *parent = nullptr);
+
+    /**
+     * @brief MainWindow sınıfının yıkıcı fonksiyonu.
+     *
+     * Uygulama kapatıldığında bellek sızıntılarını önlemek için
+     * oluşturulan tüm dinamik nesneleri (pointer lar) temizler.
+     */
     ~MainWindow();
 
 private slots:
+    //================================================================
+    //== UI Eleman Slotları (Qt Designer tarafından otomatik bağlanır)
+    //================================================================
     void on_pushButton_AddVideo_clicked();
-
     void on_pushButton_selectVideo_clicked();
-
-    void on_horizontalSlider_sliderMoved(int position);
-
     void on_listWidget_Videos_itemDoubleClicked(QListWidgetItem *item);
-
     void on_pushButton_PlayPause_clicked();
-
-    void on_doubleSpinBox_PlaybackSpeed_valueChanged(double arg1);
-
+    void on_doubleSpinBox_PlaybackSpeed_valueChanged(double value);
+    void on_horizontalSlider_sliderMoved(int position);
     void on_pushButton_SystemStatus_clicked();
+    void on_pushButton_ChooseModel_clicked();
 
+    //================================================================
+    //== VideoController Sinyalleri İçin Slotlar
+    //================================================================
+    void onFrameReady(const FrameData& frameData);
+    void onVideoOpened(const VideoInfo& videoInfo);
+    void onVideoClosed();
+    void onPlaybackStateChanged(PlaybackState state);
+    void onProgressChanged(double progress);
+    void onPerformanceUpdated(const PerformanceStats& stats);
 
-    // VIDEO CONTROLLER SLOTLARI
+    //================================================================
+    //== YOLOCommunicator Sinyalleri İçin Slotlar
+    //================================================================
+    void onDetectionReceived(const DetectionResult& result);
+    void onYOLOConnectionChanged(bool connected);
+    void onYOLOError(const QString& error);
 
-    void onFrameReady(const FrameData& frameData); //VideoController dan yeni frame geldiğinde
-
-
-    void onVideoOpened(const VideoInfo& videoInfo); // Video açıldığında
-
-
-    void onVideoClosed(); // Video Kapandığında
-
-
-    void onPlaybackStateChanged(VideoController::PlaybackState state); //Playback state değiştiğinde
-
-
-    void onProgressChanged(double progress); //Video progress değiştiğinde
-
-
-    void onPerformanceUpdated(const PerformanceStats& stats); //Performance istatistikleri güncellendiğinde
-
-
-
-
-
-    // TIMER SLOTLARI
-
-    void onUIUpdateTimer(); //UI güncelleme timer ı
-
-
+    //================================================================
+    //== Zamanlayıcı (Timer) Slotu
+    //================================================================
+    void onUIUpdateTimer();
 
 private:
-    Ui::MainWindow *ui;
-
-    VideoController* videoController;       // Video yönetimi
-    FrameQueue* testFrameQueue;            // Test amaçlı frame queue
-    QStringList videoFilesList;            // Eklenen video dosyaları listesi
-    QString currentVideoPath;              // Şu an açık olan video
-    bool isVideoLoaded;                    // Video yüklü mü?
-    bool isPlaying;                        // Oynatılıyor mu?
-    QLabel* statusLabel;                   // Genel durum mesajı
-    QLabel* videoInfoLabel;                // Video bilgileri
-    QLabel* performanceLabel;              // Performance istatistikleri
-    QLabel* frameInfoLabel;                // Mevcut frame bilgileri
-    QProgressBar* memoryUsageBar;          // Memory kullanım göstergesi
-    QTimer* uiUpdateTimer;                 // UI güncelleme
-    QTimer* queueMonitorTimer;             // Queue monitoring
-    QElapsedTimer fpsTimer;                // FPS hesaplama için
-    int frameCounter;                      // İşlenen frame sayısı
-    double currentDisplayFPS;              // Mevcut display FPS
-
-    void initializeUI(); //UI bileşenlerini initialize et
-    void setupVideoController(); //VideoController ı setup et
+    //================================================================
+    //== Kurulum (Setup) Fonksiyonları
+    //================================================================
+    void setupVideoController();
+    void setupYOLOCommunicator();
     void setupStatusBar();
     void setupTimers();
-    void connectSignals(); //Signal-slot bağlantılarını kur
+    void connectSignals();
     void initializeTestQueue();
 
-    void displayFrame(const FrameData& frameData); //Frame i video display widget ında göster
-    QPixmap matToQPixmap(const cv::Mat& frame); // QT arayüzünden göstermek için cv::Mat → QPixmap dönüşümü zorunlu
-    void updateVideoControls(VideoController::PlaybackState state); //Video kontrol butonlarını güncelle
-    void updateVideoInfo(const VideoInfo& videoInfo); //Video bilgilerini UI da göster
-    void updatePerformanceInfo(const PerformanceStats& stats); //Performance bilgilerini UI da göster
-    void updateStatusBar(const QString& message);
-    void updateSeekSlider(double progress);
-
-     QString selectVideoFile();
+    //================================================================
+    //== Yardımcı ve UI Güncelleme Fonksiyonları
+    //================================================================
+    void displayFrame(const FrameData& frameData);
+    QPixmap matToQPixmap(const cv::Mat& frame);
+    QString selectVideoFile();
     void addVideoToList(const QString& filePath);
-    void removeVideoFromList(int index);
-    void clearVideoList();
-
-    void testThreadSafeQueue();
-    void logSystemStatus();
+    void updateStatusBar(const QString& message);
     void showDebugInfo();
     double calculateMemoryUsage();
+    void updateVideoControls(PlaybackState state);
+    void updateVideoInfo(const VideoInfo& videoInfo);
+    void updatePerformanceInfo(const PerformanceStats& stats);
+    void updateSeekSlider(double progress);
+    void updateYOLOStatus();
+    void updateDetectionStats();
+    void updateFrameInfo(const FrameData& frameData, bool hasDetection, const DetectionResult& detection);
+    void drawDetections(cv::Mat& frame, const DetectionResult& result);
+    void cleanupDetectionCache();
 
-    QString formatTime(double seconds); //Zaman formatını okunabilir yap
-    QString formatFileSize(qint64 bytes); // Dosya boyutunu okunabilir yap
-    void showErrorMessage(const QString& title, const QString& message);
+    Ui::MainWindow *ui;
+
+    // Status Bar Elemanları
+    QLabel *statusLabel;                     // Genel sistem durumu mesajını gösterir.
+    QLabel *videoInfoLabel;                  // Yüklenen video bilgilerini (çözünürlük, FPS) gösterir.
+    QLabel *performanceLabel;                // Video işleme performansını (FPS) gösterir.
+    QLabel *frameInfoLabel;                  // Mevcut frame numarasını, timestamp ini ve tespit bilgilerini gösterir.
+    QLabel *yoloStatusLabel;                 // YOLO servis bağlantı durumunu gösterir.
+    QProgressBar *memoryUsageBar;            // Uygulamanın bellek kullanımını gösterir.
+
+    // Kontrolcüler ve İletişimciler
+    VideoController *videoController;        // Video okuma, oynatma ve kontrol işlemlerini yönetir.
+    FrameQueue *testFrameQueue;              // Test ve debug amaçlı frame leri saklayan kuyruk.
+    YOLOCommunicator *yoloCommunicator;      // YOLOv8 servisi ile iletişimi yönetir.
+
+    //   Zamanlayıcılar (Timers)
+    QTimer *uiUpdateTimer;                    // UI elemanlarını periyodik olarak güncelleyen timer.
+    QElapsedTimer fpsTimer;                   // FPS hesaplaması için geçen süreyi ölçer.
+
+    //  Durum Değişkenleri (State Variables)
+    bool isVideoLoaded;                       // Bir video dosyasının yüklenip yüklenmediğini belirtir.
+    bool isYOLOConnected;                     // YOLO servisine bağlı olup olmadığını belirtir.
+    bool isYOLOEnabled;                       // YOLO tespitlerinin aktif olup olmadığını belirtir.
+    bool isPlaying;                           // Videonun anlık olarak oynatılıp oynatılmadığını belirtir.
+
+    //  Veri Saklama ve Sayaçlar
+    QStringList videoFilesList;               // Playlist e eklenen video dosyalarının tam yollarını tutar.
+    QString currentVideoPath;                 // O an işlenen video dosyasının yolu.
+    int frameCounter;                         // Başlangıçtan itibaren işlenen toplam frame sayısı.
+    double currentDisplayFPS;                 // Anlık olarak ekranda gösterilen FPS değeri.
+    QMap<int, DetectionResult> detectionResults;  // Frame ID sine göre tespit sonuçlarını saklayan önbellek (cache).
+    DetectionResult lastValidDetection;       // Ekranda gösterilmek üzere kullanılan son geçerli tespit sonucu.
+    int lastDetectionFrameId = -1;            // Son tespitin yapıldığı frame in ID si.
+    long long totalDetectionsCount = 0;       // Oturum boyunca yapılan toplam tespit sayısı.
+
+    //   Sabitler
+    const int DETECTION_PERSISTENCE = 5;      // Bir tespit sonucunun, yeni bir tespit gelene kadar sonraki kaç frame boyunca ekranda kalacağını belirler.
 };
+
 #endif // MAINWINDOW_H
