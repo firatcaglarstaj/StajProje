@@ -3,27 +3,27 @@
 
 #include "ai/DetectionData.h"
 #include "core/FrameData.h"
+#include "core/ThreadQueue.h" // FrameQueue için
 #include <QObject>
 #include <QTcpSocket>
-#include <QTimer>
 #include <QJsonObject>
 #include <opencv2/opencv.hpp>
-
+#include <atomic>
+#include <QThread>
 
 class YOLOCommunicator : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit YOLOCommunicator(QObject *parent = nullptr);
+    explicit YOLOCommunicator(FrameQueue* detectionQueue, QObject *parent = nullptr);
     ~YOLOCommunicator();
 
-    bool connectToYOLO(const QString& host = "localhost", int port = 8888);
-    void disconnectFromYOLO();
-    bool isConnected() const;
-
-    void sendFrameForDetection(const FrameData& frameData);
     QString getStatus() const;
+
+public slots:
+    void startProcessing();
+    void stopProcessing();
 
 signals:
     void detectionReceived(const DetectionResult& result);
@@ -33,30 +33,31 @@ signals:
 private slots:
     void onConnected();
     void onDisconnected();
-    void onDataReceived();
-    void onSocketError();
-    void onResponseTimeout();
+    // onDataReceived ve onSocketError artık doğrudan döngü içinde yönetilecek
 
 private:
-    QTcpSocket* socket;
-    QTimer* timeoutTimer;
-    bool connected;
-    QString serverHost;
-    int serverPort;
-
-    int lastSentFrameId;
-    bool waitingForResponse;
-
-    int framesSent;
-    int resultsReceived;
-    int errors;
+    bool connectToYOLO(const QString& host = "localhost", int port = 8888);
+    void disconnectFromYOLO();
+    bool isConnected() const;
 
     void sendMessage(const QJsonObject& message);
     QJsonObject receiveMessage();
     QString frameToBase64(const cv::Mat& frame);
     DetectionResult parseDetectionResult(const QJsonObject& json);
     void handleError(const QString& errorMessage);
-    void resetConnection();
+
+    QTcpSocket* socket;
+    FrameQueue* detectionQueue;
+    std::atomic<bool> isRunning;
+
+    bool connected;
+    QString serverHost;
+    int serverPort;
+
+    // İstatistikler
+    int framesSent;
+    int resultsReceived;
+    int errors;
 };
 
 #endif // YOLOCOMMUNICATOR_H

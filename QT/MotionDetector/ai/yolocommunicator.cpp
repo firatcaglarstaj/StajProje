@@ -5,46 +5,97 @@
 #include <QDataStream>
 #include <QNetworkProxy>
 
-YOLOCommunicator::YOLOCommunicator(QObject *parent)
-    : QObject(parent)
-    , socket(nullptr)
-    , timeoutTimer(nullptr)
-    , connected(false)
-    , serverHost("localhost")
-    , serverPort(8888)
-    , lastSentFrameId(-1)
-    , waitingForResponse(false)
-    , framesSent(0)
-    , resultsReceived(0)
-    , errors(0)
+YOLOCommunicator::YOLOCommunicator(FrameQueue* detectionQueue, QObject *parent)
+    : QObject(parent),
+    socket(nullptr),
+    detectionQueue(detectionQueue),
+    isRunning(false),
+    connected(false),
+    serverHost("localhost"),
+    serverPort(8888),
+    framesSent(0),
+    resultsReceived(0),
+    errors(0)
 {
-    qDebug() << "YOLOCommunicator: Oluşturuluyor...";
-
-    // TCP socket oluştur
-    socket = new QTcpSocket(this);
-
-    // Timeout timer oluştur
-    timeoutTimer = new QTimer(this);
-    timeoutTimer->setSingleShot(true);
-    timeoutTimer->setInterval(5000); // 5 saniye timeout
-
-    // Signal bağlantıları
-    connect(socket, &QTcpSocket::connected, this, &YOLOCommunicator::onConnected);
-    connect(socket, &QTcpSocket::disconnected, this, &YOLOCommunicator::onDisconnected);
-    connect(socket, &QTcpSocket::readyRead, this, &YOLOCommunicator::onDataReceived);
-    connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
-            this, &YOLOCommunicator::onSocketError);
-    connect(timeoutTimer, &QTimer::timeout, this, &YOLOCommunicator::onResponseTimeout);
-
-    qDebug() << "YOLOCommunicator: Hazır";
+    qDebug() << "YOLOCommunicator: Worker oluşturuldu.";
 }
 
 YOLOCommunicator::~YOLOCommunicator()
 {
-    qDebug() << "YOLOCommunicator: Temizleniyor...";
+    if (socket) {
+        delete socket;
+    }
+    qDebug() << "YOLOCommunicator: Worker silindi.";
+}
+void YOLOCommunicator::stopProcessing()
+{
+    isRunning = false;
+    // Bekleyen bir pop() işlemini sonlandırmak için kuyruğu temizleyebiliriz.
+    // Bu, MainWindow da thread'i durdururken yapılır.
+}
+
+
+void YOLOCommunicator::startProcessing()
+{
+    socket = new QTcpSocket();
+    connect(socket, &QTcpSocket::connected, this, &YOLOCommunicator::onConnected);
+    connect(socket, &QTcpSocket::disconnected, this, &YOLOCommunicator::onDisconnected);
+
+    isRunning = true;
+    qDebug() << "YOLO Thread: İşlem döngüsü başladı.";
+
+    while (isRunning) {
+        if (!isConnected()) {
+            if (!connectToYOLO(serverHost, serverPort)) {
+                qDebug() << "YOLO Thread: Bağlantı kurulamadı, 5 saniye sonra tekrar denenecek.";
+                QThread::msleep(5000); // 5 saniye bekle
+                continue; // Döngünün başına dön
+            }
+        }
+
+        // Tespit kuyruğundan bir kare al (kuyruk boşsa burada bekleyecek)
+        FrameData frameData = detectionQueue->pop();
+        if (!isRunning) break;
+
+        try {
+            qDebug() << "YOLO Thread: Frame gönderiliyor:" << frameData.frameId;
+
+            QJsonObject payload;
+            payload["frame_id"] = frameData.frameId;
+            payload["data"] = frameToBase64(frameData.frame);
+            // Diğer parametreler eklenebilir...
+
+            QJsonObject message;
+            message["type"] = "frame_request";
+            message["payload"] = payload;
+
+            sendMessage(message);
+            framesSent++;
+
+            // Cevabı al (receiveMessage blocking bir yapıda olmalı)
+            QJsonObject response = receiveMessage();
+            if (response.isEmpty()) {
+                // Bağlantı kopmuş olabilir
+                handleError("Python servisinden boş cevap alındı, bağlantı kopmuş olabilir.");
+                disconnectFromYOLO();
+                continue;
+            }
+
+            if (response["type"].toString() == "detection_result") {
+                DetectionResult result = parseDetectionResult(response["payload"].toObject());
+                if (result.isValid()) {
+                    resultsReceived++;
+                    emit detectionReceived(result); // Sonucu Ana Thread'e sinyal ile gönder
+                }
+            }
+        }
+        catch (const std::exception& e) {
+            handleError(QString("YOLO Thread hatası: %1").arg(e.what()));
+            disconnectFromYOLO();
+        }
+    }
     disconnectFromYOLO();
-    qDebug() << "YOLOCommunicator: Son istatistikler - Gönderilen:" << framesSent
-             << "Alınan:" << resultsReceived << "Hata:" << errors;
+    qDebug() << "YOLO Thread: İşlem döngüsü durdu.";
 }
 
 bool YOLOCommunicator::connectToYOLO(const QString& host, int port) {
@@ -72,140 +123,17 @@ bool YOLOCommunicator::connectToYOLO(const QString& host, int port) {
 
     return success;
 }
-void YOLOCommunicator::disconnectFromYOLO()
-{
-    qDebug() << "YOLOCommunicator: Bağlantı kesiliyor...";
 
-    if (socket && socket->state() == QTcpSocket::ConnectedState) {
-        socket->disconnectFromHost();
-        socket->waitForDisconnected(1000);
-    }
-
-    resetConnection();
-}
 
 bool YOLOCommunicator::isConnected() const
 {
     return connected && socket && socket->state() == QTcpSocket::ConnectedState;
 }
 
-void YOLOCommunicator::sendFrameForDetection(const FrameData& frameData) {
-    if (!isConnected() || waitingForResponse) {
-        return;
-    }
-
-    try {
-        qDebug() << "Frame gönderiliyor:" << frameData.frameId;
-
-        // JSON mesaj hazırla
-        QJsonObject message;
-        message["type"] = "frame_request";
-        message["timestamp"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-
-        QJsonObject payload;
-        payload["frame_id"] = frameData.frameId;
-        payload["width"] = frameData.frame.cols;
-        payload["height"] = frameData.frame.rows;
-
-        // image encoding VE detection parametreleri
-        payload["data"] = frameToBase64(frameData.frame);
-
-        // YOLO detection parametreleri ekle
-        QJsonObject detectionParams;
-        detectionParams["confidence_threshold"] = 0.3;  // Düşük threshold (daha fazla detection)
-        detectionParams["nms_threshold"] = 0.4;         // Non-max suppression
-        detectionParams["max_detections"] = 50;         // Maksimum detection sayısı
-        detectionParams["target_classes"] = QJsonArray::fromStringList(
-            QStringList() << "person" << "car" //<< "bicycle" << "car" << "motorcycle"
-            // << "bus" << "truck" << "backpack" << "handbag"
-            ); // Sadece ilgili class ları detect et. Bu ilerde sadece istenen obje kontrolü için kullanılabilir
-
-        payload["detection_params"] = detectionParams;
-        message["payload"] = payload;
-
-        // Gönder
-        sendMessage(message);
-
-        // State güncelle
-        lastSentFrameId = frameData.frameId;
-        waitingForResponse = true;
-        framesSent++;
-        timeoutTimer->start();
-
-    } catch (const std::exception& e) {
-        handleError(QString("Frame gönderme hatası: %1").arg(e.what()));
-    }
-}
-
-void YOLOCommunicator::onConnected()
-{
-    qDebug() << "YOLOCommunicator: Python YOLO'ya bağlandı!";
-    connected = true;
-    emit connectionStatusChanged(true);
-}
-
-void YOLOCommunicator::onDisconnected()
-{
-    qDebug() << "YOLOCommunicator: Python YOLO bağlantısı kesildi";
-    resetConnection();
+void YOLOCommunicator::onDisconnected() {
+    connected = false;
+    qDebug() << "YOLOCommunicator: Python YOLO bağlantısı kesildi.";
     emit connectionStatusChanged(false);
-}
-
-void YOLOCommunicator::onDataReceived()
-{
-    try {
-        qDebug() << "YOLOCommunicator: Python'dan veri alındı";
-
-        // JSON mesajı al
-        QJsonObject response = receiveMessage();
-
-        if (response.isEmpty()) {
-            qDebug() << "YOLOCommunicator: Boş mesaj alındı";
-            return;
-        }
-
-        QString messageType = response["type"].toString();
-
-        if (messageType == "detection_result") {
-            // Detection sonucunu parse et
-            DetectionResult result = parseDetectionResult(response["payload"].toObject());
-
-            if (result.isValid()) {
-                qDebug() << "YOLOCommunicator: Detection alındı:" << result.toString();
-
-                // State güncelle
-                waitingForResponse = false;
-                resultsReceived++;
-                timeoutTimer->stop();
-
-                // Signal emit et
-                emit detectionReceived(result);
-            } else {
-                handleError("Geçersiz detection sonucu");
-            }
-        } else {
-            qDebug() << "YOLOCommunicator: Bilinmeyen mesaj tipi:" << messageType;
-        }
-
-    } catch (const std::exception& e) {
-        handleError(QString("Veri alma hatası: %1").arg(e.what()));
-    } catch (...) {
-        handleError("Veri alma bilinmeyen hatası");
-    }
-}
-
-void YOLOCommunicator::onSocketError()
-{
-    QString error = QString("Socket hatası: %1").arg(socket->errorString());
-    qDebug() << "YOLOCommunicator:" << error;
-    handleError(error);
-}
-
-void YOLOCommunicator::onResponseTimeout()
-{
-    qDebug() << "YOLOCommunicator: Python cevap timeout!";
-    waitingForResponse = false;
-    handleError("Python YOLO cevap vermiyor (timeout)");
 }
 
 void YOLOCommunicator::sendMessage(const QJsonObject& message)
@@ -236,9 +164,8 @@ void YOLOCommunicator::sendMessage(const QJsonObject& message)
 
 QJsonObject YOLOCommunicator::receiveMessage()
 {
-    // İlk 4 byte = mesaj boyutu
-    if (socket->bytesAvailable() < 4) {
-        return QJsonObject();
+    if (!socket->waitForReadyRead(5000)) { // 5 saniye timeout
+        throw std::runtime_error("Cevap alma zaman aşımına uğradı.");
     }
 
     QByteArray sizeData = socket->read(4);
@@ -326,17 +253,22 @@ void YOLOCommunicator::handleError(const QString& errorMessage)
 {
     qDebug() << "YOLOCommunicator: Hata:" << errorMessage;
     errors++;
-    waitingForResponse = false;
-    timeoutTimer->stop();
     emit errorOccurred(errorMessage);
 }
 
-void YOLOCommunicator::resetConnection()
-{
-    connected = false;
-    waitingForResponse = false;
-    lastSentFrameId = -1;
-    if (timeoutTimer) {
-        timeoutTimer->stop();
+void YOLOCommunicator::disconnectFromYOLO() {
+    if (socket && socket->isOpen()) {
+        socket->disconnectFromHost();
+        // Beklemeli disconnect, thread'in blocklanmaması için isteğe bağlı
+        if (socket->state() != QAbstractSocket::UnconnectedState) {
+            socket->waitForDisconnected(1000);
+        }
     }
+    // Zaten onDisconnected sinyali 'connected' bayrağını ve durumu yönetecek.
+}
+
+void YOLOCommunicator::onConnected() {
+    connected = true;
+    qDebug() << "YOLOCommunicator: Python YOLO'ya bağlandı!";
+    emit connectionStatusChanged(true);
 }

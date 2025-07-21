@@ -2,96 +2,54 @@
 #define VIDEOCONTROLLER_H
 
 #include "core/FrameData.h"
+#include "core/ThreadQueue.h"
 #include <QObject>
 #include <QTimer>
-#include <QDateTime>
-#include <QDebug>
+#include <QElapsedTimer>
 #include <opencv2/opencv.hpp>
-
-// Video oynatma durumları
-enum PlaybackState {
-    Stopped,
-    Playing,
-    Paused,
-    Finished,
-    Error
-};
+#include <atomic> // Döngüyü güvenli bir şekilde durdurmak için
 
 class VideoController : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit VideoController(QObject *parent = nullptr);
+    // Kurucu fonksiyon artık kuyrukları parametre olarak alıyor
+    explicit VideoController(FrameQueue* displayQueue, QObject *parent = nullptr);
     ~VideoController();
 
+    // Bu metodlar hala Ana Thread den çağrılabilir
     bool openVideo(const QString &filePath);
     void closeVideo();
-
-    void play();
-    void pause();
-    void stop();
-
-    void seekToFrame(int frameNumber);
-    void seekToTime(double timeInSeconds);
-
-    void setPlaybackSpeed(double speed);
-    double getPlaybackSpeed() const { return playbackSpeed; }
-
-    FrameData getNextFrame();
-
-    FrameData getLastFrame() const;
-    FrameData getCurrentFrame();
-
-    bool isVideoOpen() const { return videoCapture.isOpened(); }
-    PlaybackState getState() const { return currentState; }
+    bool openVideoDirectly(const QString& filePath); ////////////
+public slots:
+    // Bu slotlar thread başladığında veya durdurulmak istendiğinde çağrılacak
+    void startProcessing();
+    void stopProcessing();
 
 signals:
-    void frameReady(const FrameData& frame);
-    void videoOpened(const VideoInfo& info);
-    void videoClosed();
-    void playbackStateChanged(PlaybackState newState);
-    void progressChanged(double progress);  // progress: 0.0 - 1.0
-
-private slots:
-    void onPlaybackTimer();
-    void onPerformanceTimer();
+    // Görüntüleme kuyruğuna yeni bir kare eklendiğini Ana Thread e bildirir
+    void frameAvailable();
+    // Video hakkında bilgi ve durum sinyalleri
+    void videoOpened(const VideoInfo& videoInfo);
+    void videoFinished();
+    void progressChanged(double progress);
 
 private:
-    QTimer* playbackTimer;
-    QTimer* fpsCalculationTimer;
-
-    cv::VideoCapture videoCapture;
-
-    PlaybackState currentState;
-    VideoInfo currentVideoInfo;
-    PerformanceStats performanceStats;
-
-    FrameData lastFrameData;
-
-    int nextFrameId;
-    double targetFPS;
-    double playbackSpeed;
-
-    QElapsedTimer performanceTimer;
-
-    void handleError(const QString& errorMessage);
-    void setState(PlaybackState newState);
-
-    void startTimers();
-    void stopTimers();
-
+    FrameData createFrameData(const cv::Mat& frame);
     bool updateVideoInfo();
     void resetVideoInfo();
-    FrameData createFrameData(const cv::Mat& frame);
-    void updatePerformanceStats();
 
-    bool isValidVideoFile(const QString &filePath);
+    cv::VideoCapture videoCapture;
+    VideoInfo currentVideoInfo;
+    int nextFrameId;
 
-    double getProgress() const {
-        if (currentVideoInfo.totalFrames <= 0) return 0.0;
-        return static_cast<double>(currentVideoInfo.currentFrameNumber) / currentVideoInfo.totalFrames;
-    }
+    // Worker ların iletişim kuracağı kuyruklar
+    FrameQueue* displayQueue;
+    FrameQueue* detectionQueue;
+
+    // Döngünün çalışıp çalışmadığını kontrol eden thread-safe bayrak
+    std::atomic<bool> isRunning;
 };
 
 #endif // VIDEOCONTROLLER_H

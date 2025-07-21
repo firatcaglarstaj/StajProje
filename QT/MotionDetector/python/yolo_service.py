@@ -16,9 +16,9 @@ class SimpleYOLOService:
         # YOLO modelini yükle
         try:
             self.model = YOLO('yolo11n.pt')  # Nano model - hızlı
-            print("✅ YOLO model yüklendi")
+            print("  YOLO model yüklendi")
         except Exception as e:
-            print(f"❌ Model yükleme hatası: {e}")
+            print(f" Model yükleme hatası: {e}")
             self.model = None
 
         # Server ayarları
@@ -38,8 +38,8 @@ class SimpleYOLOService:
             self.socket.bind((self.host, self.port))
             self.socket.listen(1)
 
-            print(f"🔗 Server başlatıldı: {self.host}:{self.port}")
-            print("📡 C++ bağlantısı bekleniyor...")
+            print(f"  Server başlatıldı: {self.host}:{self.port}")
+            print("  C++ bağlantısı bekleniyor...")
 
             # C++'dan bağlantı bekle
             client_socket, client_address = self.socket.accept()
@@ -53,20 +53,20 @@ class SimpleYOLOService:
         finally:
             if self.socket:
                 self.socket.close()
-                print("🔌 Server kapatıldı")
+                print("  Server kapatıldı")
 
     def process_frames(self, client_socket):
         """C++'dan gelen frame'leri işle"""
-        print("🎬 Frame işleme başladı...")
+        print(" Frame işleme başladı...")
 
         try:
             while True:
-                # C++'dan mesaj al
+                # C++ dan mesaj al
                 message = self.receive_message(client_socket)
                 if not message:
                     break
 
-                # Frame'i işle
+                # Frame i işle
                 if message.get('type') == 'frame_request':
                     self.handle_frame(client_socket, message)
 

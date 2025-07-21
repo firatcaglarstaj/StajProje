@@ -1,32 +1,39 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "ai/yolocommunicator.h"
+#include <qfileinfo.h>
 
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , videoController(nullptr)
-    , testFrameQueue(nullptr)
-    , yoloCommunicator(nullptr)
-    , isVideoLoaded(false)
-    , isYOLOConnected(false)
-    , isYOLOEnabled(false)
-    , isPlaying(false)
-    , frameCounter(0)
-    , currentDisplayFPS(0.0)
-    , totalDetectionsCount(0)
+    : QMainWindow(parent),
+    ui(new Ui::MainWindow),
+    videoController(nullptr),
+    yoloCommunicator(nullptr),
+    videoThread(nullptr),
+    yoloThread(nullptr),
+    displayTimer(nullptr),
+    uiUpdateTimer(nullptr),
+    isPlaying(false),
+    isVideoLoaded(false),
+    isYOLOConnected(false),
+    isYOLOEnabled(false),
+    frameCounter(0),
+    currentDisplayFPS(0.0),
+    totalDetectionsCount(0),
+    lastDetectionFrameId(-1),
+    DETECTION_PERSISTENCE(15)
 {
     ui->setupUi(this);
-
-    //initializeUI();
-    setupVideoController();
-    setupYOLOCommunicator();
     setupStatusBar();
     setupTimers();
-    connectSignals();
-    initializeTestQueue();
-    updateStatusBar("Sistem hazır - Video dosyası seçin");
+    setupThreads();
+
+    displayTimer = new QTimer(this);
+    connect(displayTimer, &QTimer::timeout, this, &MainWindow::onDisplayTimer);
+
+    uiUpdateTimer = new QTimer(this);
+    connect(uiUpdateTimer, &QTimer::timeout, this, &MainWindow::onUIUpdateTimer);
+    uiUpdateTimer->start(100);
 }
 
 MainWindow::~MainWindow()
@@ -42,19 +49,53 @@ MainWindow::~MainWindow()
         videoController->closeVideo();
         delete videoController;
     }
+    stopVideoProcessing();
+    // Thread'leri kapat
+    if (videoThread) {
+        videoThread->quit();
+        if (!videoThread->wait(3000)) {
+            qDebug() << "Video thread zorla sonlandırılıyor";
+            videoThread->terminate();
+            videoThread->wait(1000);
+        }
+    }
 
-    // Test queue sunu temizle
-
+    if (yoloThread) {
+        yoloThread->quit();
+        if (!yoloThread->wait(3000)) {
+            qDebug() << "YOLO thread zorla sonlandırılıyor";
+            yoloThread->terminate();
+            yoloThread->wait(1000);
+        }
+    }
     delete ui;
     qDebug() << "MainWindow: Temizlik tamamlandı";
 }
-
-void MainWindow::setupVideoController()
+void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // VideoController oluştur
-    videoController = new VideoController(this);
-}
+    cleanupThreads();
 
+    if (videoThread && videoThread->isRunning()) {
+        videoThread->quit();
+        if (!videoThread->wait(3000)) {
+            qDebug() << "Video thread timeout - zorla sonlandırılıyor";
+            videoThread->terminate();
+            videoThread->wait(1000);
+        }
+    }
+
+    if (yoloThread && yoloThread->isRunning()) {
+        yoloThread->quit();
+        if (!yoloThread->wait(3000)) {
+            qDebug() << "YOLO thread timeout - zorla sonlandırılıyor";
+            yoloThread->terminate();
+            yoloThread->wait(1000);
+        }
+    }
+
+    event->accept();
+    qDebug() << "MainWindow: Close event tamamlandı";
+}
 void MainWindow::setupStatusBar()
 {
     qDebug() << "MainWindow: Status bar setup ediliyor...";
@@ -84,7 +125,115 @@ void MainWindow::setupStatusBar()
 
     qDebug() << "MainWindow: Status bar setup tamamlandı";
 }
+void MainWindow::setupThreads() {
+    qDebug() << "MainWindow: Thread'ler kuruluyor...";
 
+    try {
+        // Thread nesnelerini oluştur
+        videoThread = new QThread(this);
+        videoThread->setObjectName("VideoThread");
+        yoloThread = new QThread(this);
+        yoloThread->setObjectName("YOLOThread");
+
+        // Worker nesnelerini oluştur
+        videoController = new VideoController(&displayQueue);
+        yoloCommunicator = new YOLOCommunicator(&detectionQueue);
+
+        // Worker'ları thread'lere taşı
+        videoController->moveToThread(videoThread);
+        yoloCommunicator->moveToThread(yoloThread);
+
+        // Signal-slot bağlantıları
+        setupSignalConnections();
+
+        // Thread cleanup bağlantıları
+        connect(videoThread, &QThread::finished, videoController, &QObject::deleteLater);
+        connect(yoloThread, &QThread::finished, yoloCommunicator, &QObject::deleteLater);
+
+        // Thread'leri başlat
+        videoThread->start();
+        yoloThread->start();
+
+        // YOLO processing'i başlat (video açıldığında değil, hemen)
+        QMetaObject::invokeMethod(yoloCommunicator, "startProcessing", Qt::QueuedConnection);
+
+        qDebug() << "MainWindow: Thread'ler başarıyla kuruldu";
+
+    } catch (const std::exception& e) {
+        qDebug() << "Thread setup hatası:" << e.what();
+        // Hata durumunda temizlik yap
+        cleanupThreads();
+    }
+}
+
+void MainWindow::setupSignalConnections() {
+    // VideoController signals
+    connect(videoController, &VideoController::videoOpened,
+            this, &MainWindow::onVideoOpened, Qt::QueuedConnection);
+    connect(videoController, &VideoController::videoFinished,
+            this, &MainWindow::onVideoFinished, Qt::QueuedConnection);
+    connect(videoController, &VideoController::progressChanged,
+            this, &MainWindow::onProgressChanged, Qt::QueuedConnection);
+
+    // YOLOCommunicator signals
+    connect(yoloCommunicator, &YOLOCommunicator::detectionReceived,
+            this, &MainWindow::onDetectionReceived, Qt::QueuedConnection);
+    connect(yoloCommunicator, &YOLOCommunicator::connectionStatusChanged,
+            this, &MainWindow::onYOLOConnectionChanged, Qt::QueuedConnection);
+    connect(yoloCommunicator, &YOLOCommunicator::errorOccurred,
+            this, &MainWindow::onYOLOError, Qt::QueuedConnection);
+}
+
+void MainWindow::cleanupThreads() {
+    qDebug() << "MainWindow: Thread cleanup başlıyor...";
+
+    if (videoController) {
+        QMetaObject::invokeMethod(videoController, "stopProcessing", Qt::QueuedConnection);
+    }
+
+    if (yoloCommunicator) {
+        QMetaObject::invokeMethod(yoloCommunicator, "stopProcessing", Qt::QueuedConnection);
+    }
+
+    // Queue'ları temizle
+    displayQueue.clear();
+    detectionQueue.clear();
+}
+
+void MainWindow::startVideoProcessing(const QString& videoPath) {
+    // Önce durdur
+    stopVideoProcessing();
+
+    updateStatusBar("Video açılıyor...");
+
+    // Direkt main thread'de aç
+    if (videoController->openVideoDirectly(videoPath)) {
+        isVideoLoaded = true;
+        isPlaying = true;
+        ui->pushButton_PlayPause->setText("Pause");
+        displayTimer->start(33);
+
+        // Sonra processing'i thread'de başlat
+        QMetaObject::invokeMethod(videoController, "startProcessing", Qt::QueuedConnection);
+
+        updateStatusBar("Video oynatılıyor");
+    } else {
+        updateStatusBar("Hata: Video açılamadı");
+    }
+}
+void MainWindow::stopVideoProcessing() {
+    if (displayTimer) displayTimer->stop();
+    if (videoController) {
+        QMetaObject::invokeMethod(videoController, "stopProcessing", Qt::QueuedConnection);
+    }
+
+    displayQueue.clear();
+    detectionQueue.clear();
+
+    isPlaying = false;
+    isVideoLoaded = false;
+    ui->pushButton_PlayPause->setText("Play");
+}
 void MainWindow::setupTimers()
 {
 
@@ -99,40 +248,36 @@ void MainWindow::setupTimers()
     qDebug() << "MainWindow: Timer'lar başlatıldı";
 }
 
-void MainWindow::connectSignals()
+void MainWindow::onDisplayTimer()
 {
-    qDebug() << "MainWindow: Signal-slot bağlantıları kuruluyor...";
+    if (displayQueue.empty()) {
+        return;
+    }
 
-    // VideoController signals
-    connect(videoController, &VideoController::frameReady,
-            this, &MainWindow::onFrameReady);
-    connect(videoController, &VideoController::videoOpened,
-            this, &MainWindow::onVideoOpened);
-    connect(videoController, &VideoController::videoClosed,
-            this, &MainWindow::onVideoClosed);
-    connect(videoController, &VideoController::playbackStateChanged,
-            this, &MainWindow::onPlaybackStateChanged);
-    connect(videoController, &VideoController::progressChanged,
-            this, &MainWindow::onProgressChanged);
-    connect(yoloCommunicator, &YOLOCommunicator::detectionReceived,
-            this, &MainWindow::onDetectionReceived);
-    connect(yoloCommunicator, &YOLOCommunicator::connectionStatusChanged,
-            this, &MainWindow::onYOLOConnectionChanged);
-    connect(yoloCommunicator, &YOLOCommunicator::errorOccurred,
-            this, &MainWindow::onYOLOError);
+    FrameData frameData = displayQueue.pop();
+    if (!frameData.isValid()) return;
 
-    qDebug() << "MainWindow: Signal-slot bağlantıları tamamlandı";
+    currentFrameData = frameData; // Güncel kareyi sakla
+    frameCounter++; // Sayacı burada artırmak daha mantıklı
+
+    // 1. Her kareyi ekranda göster
+    displayFrame(frameData);
+
+    // 2. AI analizi aktifse ve doğru karedeysek, tespit kuyruğuna gönder
+    if (isYOLOEnabled && isYOLOConnected && (frameCounter % 6 == 0)) {
+        qDebug() << "MainWindow: Frame" << frameData.frameId << "tespit için yönlendiriliyor.";
+        detectionQueue.push(frameData);
+    }
 }
 
-void MainWindow::initializeTestQueue()
+void MainWindow::onVideoFinished()
 {
-    qDebug() << "MainWindow: Test frame queue initialize ediliyor...";
-
-    // Test için frame queue oluştur
-    //testFrameQueue = new FrameQueue(30); // 30 frame buffer
-
-    qDebug() << "MainWindow: Test frame queue oluşturuldu";
+    QMetaObject::invokeMethod(this, [this](){
+        updateStatusBar("Video tamamlandı");
+        stopVideoProcessing();
+    }, Qt::QueuedConnection);
 }
+
 
 void MainWindow::on_pushButton_AddVideo_clicked()
 {
@@ -159,19 +304,9 @@ void MainWindow::on_pushButton_selectVideo_clicked()
 
     // Video dosyasını aç
     QString selectedVideoPath = videoFilesList[selectedRow];
-
-    qDebug() << "MainWindow: Video açılıyor:" << selectedVideoPath;
-
-    if (videoController->openVideo(selectedVideoPath)) {
-        currentVideoPath = selectedVideoPath;
-        isVideoLoaded = true;
-
-        // UI güncellemelerini VideoController signals halledecek
-        qDebug() << "MainWindow: Video başarıyla açıldı";
-    } else {
-        qDebug() << "Video açma başarısız";
-    }
-
+    startVideoProcessing(selectedVideoPath);
+    isVideoLoaded = true;
+    currentVideoPath = selectedVideoPath;
 }
 
 void MainWindow::on_listWidget_Videos_itemDoubleClicked(QListWidgetItem *item)
@@ -182,17 +317,26 @@ void MainWindow::on_listWidget_Videos_itemDoubleClicked(QListWidgetItem *item)
 }
 
 
-void MainWindow::on_pushButton_PlayPause_clicked()
-{
+void MainWindow::on_pushButton_PlayPause_clicked() {
+    if (!isVideoLoaded) {
+        updateStatusBar("Önce video seçin");
+        return;
+    }
 
     if (isPlaying) {
         // Pause
-        videoController->pause();
-        qDebug() << "Video duraklatıldı";
+        displayTimer->stop();
+        QMetaObject::invokeMethod(videoController, "stopProcessing", Qt::QueuedConnection);
+        isPlaying = false;
+        ui->pushButton_PlayPause->setText("Play");
+        updateStatusBar("Video duraklatıldı");
     } else {
         // Play
-        videoController->play();
-        qDebug() << "Video oynatılıyor";
+        displayTimer->start(33);
+        QMetaObject::invokeMethod(videoController, "startProcessing", Qt::QueuedConnection);
+        isPlaying = true;
+        ui->pushButton_PlayPause->setText("Pause");
+        updateStatusBar("Video oynatılıyor");
     }
 }
 
@@ -200,8 +344,13 @@ void MainWindow::on_pushButton_PlayPause_clicked()
 
 void MainWindow::on_doubleSpinBox_PlaybackSpeed_valueChanged(double value)
 {
-    if (videoController) {
-        videoController->setPlaybackSpeed(value);
+    if (value <= 0) return; // Sıfıra bölme hatasını önle
+
+    const double baseInterval = 33.0;
+    int newInterval = static_cast<int>(baseInterval / value);
+
+    if (displayTimer) {
+        displayTimer->setInterval(qMax(1, newInterval)); // Minimum 1ms
     }
 }
 
@@ -225,42 +374,6 @@ void MainWindow::on_pushButton_SystemStatus_clicked()
 }
 
 // VİDEO CONTROLLER SLOTLARI
-void MainWindow::onFrameReady(const FrameData& frameData) {
-    try {
-        if (!frameData.isValid()) {
-            return;
-        }
-
-        // YOLO'ya gönder - DÜZELTME: Her 5. frame (daha az yük)
-        if (isYOLOConnected && isYOLOEnabled) {
-            if (frameData.frameId % 5 == 0) {
-                qDebug() << "Frame YOLO'ya gönderiliyor:" << frameData.frameId;
-                yoloCommunicator->sendFrameForDetection(frameData);
-            }
-        }
-
-        // Frame i display et
-        displayFrame(frameData);
-
-        /*  Test queue'ya ekle
-        if (testFrameQueue) {
-            testFrameQueue->push(frameData);
-        }*/
-
-        frameCounter++;
-
-        // Cache temizliği
-        if (frameCounter % 50 == 0) {
-            cleanupDetectionCache();
-        }
-
-    } catch (const std::exception& e) {
-        qDebug() << "onFrameReady exception:" << e.what();
-        if (videoController) {
-            videoController->pause();
-        }
-    }
-}
 
 void MainWindow::onVideoOpened(const VideoInfo& videoInfo)
 {
@@ -276,223 +389,130 @@ void MainWindow::onVideoOpened(const VideoInfo& videoInfo)
     updateStatusBar(QString("Video yüklendi: %1").arg(videoInfo.fileName));
 }
 
-void MainWindow::onVideoClosed()
-{
-    qDebug() << "Video kapatıldı sinyal alındı";
-
-    // UI sıfırla
-    isVideoLoaded = false;
-    isPlaying = false;
-    frameCounter = 0;
-
-    // Video display ini temizle
-    ui->label_VideoDisplay->clear();
-    ui->label_VideoDisplay->setText("Video Display Area");
-
-    updateStatusBar("Video kapatıldı");
-
-}
-
-void MainWindow::onPlaybackStateChanged(PlaybackState state)
-{
-    qDebug() << "Playback state değişti:" << state;
-
-    updateVideoControls(state);
-}
 
 void MainWindow::onProgressChanged(double progress)
 {
     updateSeekSlider(progress); // Slider güncelle
 }
 
-void MainWindow::onPerformanceUpdated(const PerformanceStats& stats)
-{
-    updatePerformanceInfo(stats);  // Performance bilgilerini UI da göster
-}
 ////////////////////////////////
 
 void MainWindow::onUIUpdateTimer()
 {
-    // FPS hesapla
-    static int lastFrameCounter = 0;
-    int frameDiff = frameCounter - lastFrameCounter;
-    lastFrameCounter = frameCounter;
+    try {
+        // FPS hesapla
+        static int lastFrameCounter = 0;
+        int frameDiff = frameCounter - lastFrameCounter;
+        lastFrameCounter = frameCounter;
 
+        currentDisplayFPS = frameDiff * 10.0;
 
-    currentDisplayFPS = frameDiff * 10.0;
+        // Performance label'ı güvenli güncelle
+        if (performanceLabel) {
+            performanceLabel->setText(QString("FPS: %1").arg(currentDisplayFPS, 0, 'f', 1));
+        }
 
-    // Memory usage güncelle
-    double memoryUsage = calculateMemoryUsage();
-    memoryUsageBar->setValue(static_cast<int>(memoryUsage));
+        // Memory usage güncelle
+        if (memoryUsageBar) {
+            double memoryUsage = calculateMemoryUsage();
+            memoryUsageBar->setValue(static_cast<int>(memoryUsage));
+        }
+
+        // Cache temizliği
+        if (frameCounter % 500 == 0) { // Her 500 frame'de bir
+            cleanupDetectionCache();
+        }
+
+    } catch (const std::exception& e) {
+        qDebug() << "UI update hatası:" << e.what();
+    }
 }
 
 void MainWindow::displayFrame(const FrameData& frameData) {
     try {
-        if (frameData.frame.empty()) {
-            qDebug() << "Frame boş - skip";
-            return;
-        }
+        if (frameData.frame.empty()) return;
 
-        cv::Mat displayMat = frameData.frame; // original frame
+        cv::Mat displayMat = frameData.frame;
         DetectionResult detectionToShow;
         bool shouldShowDetection = false;
 
         // Detection kontrolü
-        bool hasDetections = detectionResults.contains(frameData.frameId);
-
-        //  Bu frame için direkt detection var mı?
         if (detectionResults.contains(frameData.frameId)) {
             detectionToShow = detectionResults[frameData.frameId];
             shouldShowDetection = true;
-            qDebug() << "detection bulundu frame" << frameData.frameId;
         }
-        //  Son detection ı kullanabilir miyiz?
         else if (lastValidDetection.isValid() && lastDetectionFrameId >= 0) {
             int frameDiff = frameData.frameId - lastDetectionFrameId;
-
             if (frameDiff >= 0 && frameDiff <= DETECTION_PERSISTENCE) {
                 detectionToShow = lastValidDetection;
                 shouldShowDetection = true;
-                qDebug() << "Persistent detection kullanılıyor (age:" << frameDiff << ")";
-            } else {
-                qDebug() << " Detection çok eski (age:" << frameDiff << ")";
             }
         }
 
-        // Detection ı çiz
+        // Detection çiz
         if (shouldShowDetection) {
             try {
                 displayMat = frameData.frame.clone();
                 drawDetections(displayMat, detectionToShow);
-                qDebug()  << detectionToShow.detections.size() << "detection çizildi";
             } catch (const cv::Exception& e) {
-                qDebug() << " Detection çizim hatası:" << e.what();
                 displayMat = frameData.frame;
             }
         }
-        // QPixmap conversion ve display
-        QPixmap pixmap = matToQPixmap(displayMat);
 
+        // Display - debug'sız
+        QPixmap pixmap = matToQPixmap(displayMat);
         if (!pixmap.isNull()) {
             ui->label_VideoDisplay->setPixmap(
                 pixmap.scaled(ui->label_VideoDisplay->size(),
                               Qt::KeepAspectRatio,
                               Qt::SmoothTransformation)
                 );
-        } else {
-            qDebug() << "QPixmap conversion başarısız!";
         }
 
-        // Frame info güncelle
         updateFrameInfo(frameData, shouldShowDetection, detectionToShow);
 
-    } catch (const cv::Exception& e) {
-        qDebug() << "displayFrame OpenCV exception:" << e.what();
-    } catch (const std::exception& e) {
-        qDebug() << "displayFrame std exception:" << e.what();
     } catch (...) {
-        qDebug() << "displayFrame unknown exception!";
+        // Silent catch
     }
 }
-QPixmap MainWindow::matToQPixmap(const cv::Mat& frame)
-{
+
+QPixmap MainWindow::matToQPixmap(const cv::Mat& frame) {
     try {
-        qDebug() << "MainWindow: Mat to QPixmap conversion başlıyor";
-        qDebug() << "Frame info - Size:" << frame.cols << "x" << frame.rows
-                 << "Channels:" << frame.channels()
-                 << "Depth:" << frame.depth()
-                 << "Type:" << frame.type();
-
-        // Frame geçerli mi kontrol et
-        if (frame.empty()) {
-            qDebug() << "MainWindow: Frame boş!";
-            return QPixmap();
-        }
-
-        // Frame boyutu kontrol et
-        if (frame.cols <= 0 || frame.rows <= 0) {
-            qDebug() << "MainWindow: Frame boyutu geçersiz!";
+        if (frame.empty() || frame.cols <= 0 || frame.rows <= 0) {
             return QPixmap();
         }
 
         QImage qimg;
 
         if (frame.channels() == 3) {
-            qDebug() << "MainWindow: 3 channel BGR frame işleniyor";
-
-            // BGR'yi RGB ye çevir
             cv::Mat rgbFrame;
             cv::cvtColor(frame, rgbFrame, cv::COLOR_BGR2RGB);
 
-            qDebug() << "BGR to RGB conversion tamam";
-
-            // Veri tipini kontrol et
             if (rgbFrame.type() != CV_8UC3) {
-                qDebug() << "Frame tipi CV_8UC3 değil:" << rgbFrame.type();
                 rgbFrame.convertTo(rgbFrame, CV_8UC3);
             }
 
-            // QImage oluştur - güvenli yöntem
-            qimg = QImage(rgbFrame.data,
-                          rgbFrame.cols,
-                          rgbFrame.rows,
-                          rgbFrame.step[0],    // step
-                          QImage::Format_RGB888);
-
-            // QImage i kopyala (data corruption dan kaçınmak için)
+            qimg = QImage(rgbFrame.data, rgbFrame.cols, rgbFrame.rows,
+                          rgbFrame.step[0], QImage::Format_RGB888);
             qimg = qimg.copy();
 
         } else if (frame.channels() == 1) {
-            qDebug() << "MainWindow: 1 channel grayscale frame işleniyor";
-
-            // Grayscale frame
             cv::Mat grayFrame = frame;
-
-            // Veri tipini kontrol et
             if (grayFrame.type() != CV_8UC1) {
-                qDebug() << "Frame tipi CV_8UC1 değil:" << grayFrame.type();
                 grayFrame.convertTo(grayFrame, CV_8UC1);
             }
-
-            qimg = QImage(grayFrame.data,
-                          grayFrame.cols,
-                          grayFrame.rows,
-                          grayFrame.step[0],
-                          QImage::Format_Grayscale8);
-
-            // QImage i kopyala
+            qimg = QImage(grayFrame.data, grayFrame.cols, grayFrame.rows,
+                          grayFrame.step[0], QImage::Format_Grayscale8);
             qimg = qimg.copy();
-
         } else {
-            qDebug() << "MainWindow: Desteklenmeyen channel sayısı:" << frame.channels();
             return QPixmap();
         }
 
-        // QImage geçerli mi kontrol et
-        if (qimg.isNull()) {
-            qDebug() << "MainWindow: QImage oluşturulamadı!";
-            return QPixmap();
-        }
+        if (qimg.isNull()) return QPixmap();
 
-        // QPixmap'e çevir
-        QPixmap pixmap = QPixmap::fromImage(qimg);
+        return QPixmap::fromImage(qimg);
 
-        if (pixmap.isNull()) {
-            qDebug() << "QPixmap oluşturulamadı!";
-            return QPixmap();
-        }
-
-        qDebug() << "QPixmap conversion başarılı!";
-        return pixmap;
-
-    } catch (const cv::Exception& e) {
-        qDebug() << "MainWindow: OpenCV exception in matToQPixmap:" << e.what();
-        return QPixmap();
-    } catch (const std::exception& e) {
-        qDebug() << "MainWindow: Exception in matToQPixmap:" << e.what();
-        return QPixmap();
     } catch (...) {
-        qDebug() << "MainWindow: Unknown exception in matToQPixmap!";
         return QPixmap();
     }
 }
@@ -522,69 +542,11 @@ void MainWindow::updateStatusBar(const QString& message)
     statusLabel->setText(message);
 }
 
-/* void MainWindow::showDebugInfo()
-{
-    QString info = "=== DEBUG INFO ===\n\n";
-
-    // Video durumu
-     if (isVideoLoaded) {
-        VideoInfo videoInfo = videoController->getVideoInfo();
-        // Video bilgileri
-        info += QString("Video: %1, %2x%3, %4FPS, %5s, %6 frames, %7MB\n")
-                    .arg(videoInfo.fileName)
-                    .arg(videoInfo.width)
-                    .arg(videoInfo.height)
-                    .arg(videoInfo.fps, 0, 'f', 1)
-                    .arg(videoInfo.duration, 0, 'f', 1)
-                    .arg(videoInfo.totalFrames)
-                    .arg(static_cast<double>(videoInfo.fileSize) / (1024.0 * 1024.0), 0, 'f', 1);
-        info += QString("Playing: %1\n").arg(isPlaying ? "Yes" : "No");
-        info += QString("Display FPS: %1\n").arg(currentDisplayFPS, 0, 'f', 1);
-    } else {
-        info += "Video: Not loaded\n";
-    }
-
-    // Queue durumu
-    if (testFrameQueue) {
-        info += QString("\nQueue: %1\n").arg(testFrameQueue->getInfo());
-    }
-
-    // System durumu
-    info += QString("\nFrame Counter: %1\n").arg(frameCounter);
-
-    QMessageBox::information(this, "Debug Info", info);
-}*/
-
 double MainWindow::calculateMemoryUsage()
 {
     // Basit memory usage hesaplama
     return 1;
 
-}
-
-void MainWindow::updateVideoControls(PlaybackState state)
-{
-    switch (state) {
-    case Playing:
-        ui->pushButton_PlayPause->setText("Pause");
-        isPlaying = true;
-        break;
-    case Paused:
-    case Stopped:
-        ui->pushButton_PlayPause->setText("Play");
-        isPlaying = false;
-        break;
-    case Finished:
-        ui->pushButton_PlayPause->setText("Play");
-        isPlaying = false;
-        updateStatusBar("Video tamamlandı");
-        break;
-    case Error:
-        ui->pushButton_PlayPause->setText("Play");
-        isPlaying = false;
-        updateStatusBar("Video hatası");
-        break;
-    }
 }
 
 void MainWindow::updateVideoInfo(const VideoInfo& videoInfo)
@@ -622,29 +584,17 @@ void MainWindow::updateSeekSlider(double progress)
     ui->horizontalSlider->blockSignals(false);
 }
 
-void MainWindow::setupYOLOCommunicator()
-{
-    yoloCommunicator = new YOLOCommunicator(this);
-}
 void MainWindow::on_pushButton_ChooseModel_clicked()
 {
-    qDebug() << "MainWindow: YOLO bağlantı butonu tıklandı";
+    isYOLOEnabled = !isYOLOEnabled; // Sadece bayrağı tersine çevir
 
-    if (isYOLOConnected) {
-        // Disconnect
-        yoloCommunicator->disconnectFromYOLO();
-        qDebug() << "MainWindow: YOLO bağlantısı kesiliyor...";
+    if (isYOLOEnabled) {
+        qDebug() << "MainWindow: YOLO analizi AKTİF.";
+        ui->pushButton_ChooseModel->setText("YOLO Analizi: Aktif");
+        updateYOLOStatus();
     } else {
-        // Connect
-        qDebug() << "MainWindow: YOLO'ya bağlanıyor...";
-        bool success = yoloCommunicator->connectToYOLO();
-
-        if (success) {
-            qDebug() << "MainWindow: YOLO servisine bağlandı";
-        } else {
-
-            qDebug() << "MainWindow: YOLO servisine bağlanılmadı";
-        }
+        qDebug() << "MainWindow: YOLO analizi PASİF.";
+        ui->pushButton_ChooseModel->setText("YOLO Analizi: Pasif");
     }
 }
 void MainWindow::onDetectionReceived(const DetectionResult& result) {
