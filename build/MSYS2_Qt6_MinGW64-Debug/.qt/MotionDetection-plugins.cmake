@@ -1,1 +1,0 @@
-set(__QT_DEPLOY_PLUGINS C:/msys64/mingw64/share/qt6/plugins/styles/qmodernwindowsstyle.dll;C:/msys64/mingw64/share/qt6/plugins/imageformats/qgif.dll;C:/msys64/mingw64/share/qt6/plugins/imageformats/qico.dll;C:/msys64/mingw64/share/qt6/plugins/imageformats/qjpeg.dll;C:/msys64/mingw64/share/qt6/plugins/platforms/qwindows.dll)

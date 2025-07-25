@@ -1,5 +1,0 @@
-C:/Users/victus/Documents/MotionDetection/build/MSYS2_Qt6_MinGW64-Debug/CMakeFiles/MotionDetection.dir
-C:/Users/victus/Documents/MotionDetection/build/MSYS2_Qt6_MinGW64-Debug/CMakeFiles/edit_cache.dir
-C:/Users/victus/Documents/MotionDetection/build/MSYS2_Qt6_MinGW64-Debug/CMakeFiles/rebuild_cache.dir
-C:/Users/victus/Documents/MotionDetection/build/MSYS2_Qt6_MinGW64-Debug/CMakeFiles/MotionDetection_autogen_timestamp_deps.dir
-C:/Users/victus/Documents/MotionDetection/build/MSYS2_Qt6_MinGW64-Debug/CMakeFiles/MotionDetection_autogen.dir
