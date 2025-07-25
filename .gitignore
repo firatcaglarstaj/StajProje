@@ -1,0 +1,13 @@
+# QT build dosyaları
+build/
+*.exe
+*.user
+*.pro.user
+*.obj
+*.o
+*.log
+*.tmp
+
+# OS dosyaları
+.DS_Store
+Thumbs.db

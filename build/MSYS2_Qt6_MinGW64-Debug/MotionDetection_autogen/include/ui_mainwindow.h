@@ -52,11 +52,14 @@ public:
     QProgressBar *progressBar;
     QSlider *horizontalSlider;
     QPushButton *pushButton_Results;
-    QDoubleSpinBox *doubleSpinBox;
+    QDoubleSpinBox *doubleSpinBox_PlaybackSpeed;
     QLabel *label_4;
     QLabel *label_CurrentTime;
-    QListWidget *videoListWidget;
-    QLabel *videoLabel;
+    QListWidget *listWidget_Videos;
+    QLabel *label_VideoDisplay;
+    QPushButton *pushButton_PlayPause;
+    QPushButton *pushButton_SystemStatus;
+    QPushButton *pushButton_MotionDetect;
     QMenuBar *menubar;
     QStatusBar *statusbar;
 
@@ -155,9 +158,9 @@ public:
         pushButton_Results = new QPushButton(centralwidget);
         pushButton_Results->setObjectName("pushButton_Results");
         pushButton_Results->setGeometry(QRect(1070, 450, 151, 29));
-        doubleSpinBox = new QDoubleSpinBox(centralwidget);
-        doubleSpinBox->setObjectName("doubleSpinBox");
-        doubleSpinBox->setGeometry(QRect(50, 480, 111, 29));
+        doubleSpinBox_PlaybackSpeed = new QDoubleSpinBox(centralwidget);
+        doubleSpinBox_PlaybackSpeed->setObjectName("doubleSpinBox_PlaybackSpeed");
+        doubleSpinBox_PlaybackSpeed->setGeometry(QRect(50, 480, 111, 29));
         label_4 = new QLabel(centralwidget);
         label_4->setObjectName("label_4");
         label_4->setGeometry(QRect(10, 460, 201, 21));
@@ -168,12 +171,21 @@ public:
         font1.setPointSize(11);
         font1.setBold(true);
         label_CurrentTime->setFont(font1);
-        videoListWidget = new QListWidget(centralwidget);
-        videoListWidget->setObjectName("videoListWidget");
-        videoListWidget->setGeometry(QRect(40, 40, 111, 251));
-        videoLabel = new QLabel(centralwidget);
-        videoLabel->setObjectName("videoLabel");
-        videoLabel->setGeometry(QRect(170, 20, 841, 431));
+        listWidget_Videos = new QListWidget(centralwidget);
+        listWidget_Videos->setObjectName("listWidget_Videos");
+        listWidget_Videos->setGeometry(QRect(40, 40, 111, 251));
+        label_VideoDisplay = new QLabel(centralwidget);
+        label_VideoDisplay->setObjectName("label_VideoDisplay");
+        label_VideoDisplay->setGeometry(QRect(170, 20, 841, 431));
+        pushButton_PlayPause = new QPushButton(centralwidget);
+        pushButton_PlayPause->setObjectName("pushButton_PlayPause");
+        pushButton_PlayPause->setGeometry(QRect(580, 500, 90, 29));
+        pushButton_SystemStatus = new QPushButton(centralwidget);
+        pushButton_SystemStatus->setObjectName("pushButton_SystemStatus");
+        pushButton_SystemStatus->setGeometry(QRect(1080, 490, 131, 29));
+        pushButton_MotionDetect = new QPushButton(centralwidget);
+        pushButton_MotionDetect->setObjectName("pushButton_MotionDetect");
+        pushButton_MotionDetect->setGeometry(QRect(30, 390, 121, 29));
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName("menubar");
@@ -205,7 +217,10 @@ public:
         pushButton_Results->setText(QCoreApplication::translate("MainWindow", "Sonu\303\247lar\304\261 Getir", nullptr));
         label_4->setText(QCoreApplication::translate("MainWindow", "Nesne Hareket H\304\261z\304\261 E\305\237i\304\237i (m/s)", nullptr));
         label_CurrentTime->setText(QCoreApplication::translate("MainWindow", "00:00:00", nullptr));
-        videoLabel->setText(QString());
+        label_VideoDisplay->setText(QString());
+        pushButton_PlayPause->setText(QCoreApplication::translate("MainWindow", "Play/Pause", nullptr));
+        pushButton_SystemStatus->setText(QCoreApplication::translate("MainWindow", "Sistem Durumu", nullptr));
+        pushButton_MotionDetect->setText(QCoreApplication::translate("MainWindow", "motion detect", nullptr));
     } // retranslateUi
 
 };

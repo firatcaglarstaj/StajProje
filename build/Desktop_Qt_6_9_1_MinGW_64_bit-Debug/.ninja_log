@@ -1,0 +1,15 @@
+# ninja log v6
+25	2207	7737874454832935	MotionDetection_autogen/timestamp	7b89d0ab8ca2fd40
+12609	12950	7737874560018772	MotionDetection.exe	9b26590f92489cf5
+25	2207	7737874454832935	MotionDetection_autogen/mocs_compilation.cpp	7b89d0ab8ca2fd40
+2216	12609	7737874456076315	CMakeFiles/MotionDetection.dir/mainwindow.cpp.obj	695349a18e2d398b
+25	2207	7737874454832935	C:/Users/victus/Documents/MotionDetection/build/Desktop_Qt_6_9_1_MinGW_64_bit-Debug/MotionDetection_autogen/timestamp	7b89d0ab8ca2fd40
+25	2207	7737874454832935	C:/Users/victus/Documents/MotionDetection/build/Desktop_Qt_6_9_1_MinGW_64_bit-Debug/MotionDetection_autogen/mocs_compilation.cpp	7b89d0ab8ca2fd40
+2212	12168	7737874456046273	CMakeFiles/MotionDetection.dir/main.cpp.obj	5444445e1d5877f7
+2208	12413	7737874456006297	CMakeFiles/MotionDetection.dir/MotionDetection_autogen/mocs_compilation.cpp.obj	6116989a7bc6b733
+27	55	7737874275232906	CMakeFiles/clean.additional	baedbe210acaa455
+55	65	7737874275511100	clean	577b940aee94fbd7
+9	42	7737878246107968	CMakeFiles/clean.additional	baedbe210acaa455
+43	53	7737878246449125	clean	577b940aee94fbd7
+21	43	7737878333500741	CMakeFiles/clean.additional	baedbe210acaa455
+43	52	7737878333720738	clean	577b940aee94fbd7

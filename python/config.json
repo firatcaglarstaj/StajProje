@@ -1,0 +1,7 @@
+{
+    "model_path": "yolo11n.pt",
+    "server_host": "localhost",
+    "server_port": 8888,
+    "confidence_threshold": 0.5,
+    "image_size": 640
+}

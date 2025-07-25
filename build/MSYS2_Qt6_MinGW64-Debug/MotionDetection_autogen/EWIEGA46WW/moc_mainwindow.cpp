@@ -8,9 +8,6 @@
 
 #include "../../../../mainwindow.h"
 #include <QtGui/qtextcursor.h>
-#include <QtGui/qscreen.h>
-#include <QtNetwork/QSslPreSharedKeyAuthenticator>
-#include <QtNetwork/QSslError>
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>
@@ -46,21 +43,33 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         "on_pushButton_AddVideo_clicked",
         "",
         "on_pushButton_selectVideo_clicked",
-        "on_listView_videos_doubleClicked",
-        "QModelIndex",
-        "index",
-        "on_doubleSpinBox_valueChanged",
-        "arg1",
+        "on_listWidget_Videos_itemDoubleClicked",
+        "QListWidgetItem*",
+        "item",
+        "on_pushButton_PlayPause_clicked",
+        "on_doubleSpinBox_PlaybackSpeed_valueChanged",
+        "value",
         "on_horizontalSlider_sliderMoved",
         "position",
+        "on_pushButton_SystemStatus_clicked",
         "on_pushButton_ChooseModel_clicked",
-        "on_pushButton_addModel_clicked",
-        "on_comboBox_selectModel_currentIndexChanged",
-        "on_pushButton_ChooseObject_clicked",
-        "on_pushButton_AddObject_clicked",
-        "on_pushButton_Process_clicked",
-        "on_pushButton_Results_clicked",
-        "showNextFrame"
+        "on_pushButton_MotionDetect_clicked",
+        "onVideoOpened",
+        "VideoInfo",
+        "videoInfo",
+        "onVideoFinished",
+        "onProgressChanged",
+        "progress",
+        "onDetectionReceived",
+        "DetectionResult",
+        "result",
+        "onYOLOConnectionChanged",
+        "connected",
+        "onYOLOError",
+        "error",
+        "onDisplayTimer",
+        "onUIUpdateTimer",
+        "onMotionResultReady"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -68,36 +77,54 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'on_pushButton_selectVideo_clicked'
         QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'on_listView_videos_doubleClicked'
-        QtMocHelpers::SlotData<void(const QModelIndex &)>(4, 2, QMC::AccessPrivate, QMetaType::Void, {{
+        // Slot 'on_listWidget_Videos_itemDoubleClicked'
+        QtMocHelpers::SlotData<void(QListWidgetItem *)>(4, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { 0x80000000 | 5, 6 },
         }}),
-        // Slot 'on_doubleSpinBox_valueChanged'
-        QtMocHelpers::SlotData<void(double)>(7, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Double, 8 },
+        // Slot 'on_pushButton_PlayPause_clicked'
+        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'on_doubleSpinBox_PlaybackSpeed_valueChanged'
+        QtMocHelpers::SlotData<void(double)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Double, 9 },
         }}),
         // Slot 'on_horizontalSlider_sliderMoved'
-        QtMocHelpers::SlotData<void(int)>(9, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 10 },
+        QtMocHelpers::SlotData<void(int)>(10, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 11 },
         }}),
-        // Slot 'on_pushButton_ChooseModel_clicked'
-        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'on_pushButton_addModel_clicked'
+        // Slot 'on_pushButton_SystemStatus_clicked'
         QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'on_comboBox_selectModel_currentIndexChanged'
-        QtMocHelpers::SlotData<void(int)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 6 },
-        }}),
-        // Slot 'on_pushButton_ChooseObject_clicked'
+        // Slot 'on_pushButton_ChooseModel_clicked'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'on_pushButton_MotionDetect_clicked'
         QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'on_pushButton_AddObject_clicked'
-        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'on_pushButton_Process_clicked'
-        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'on_pushButton_Results_clicked'
-        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'showNextFrame'
+        // Slot 'onVideoOpened'
+        QtMocHelpers::SlotData<void(const VideoInfo &)>(15, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { 0x80000000 | 16, 17 },
+        }}),
+        // Slot 'onVideoFinished'
         QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onProgressChanged'
+        QtMocHelpers::SlotData<void(double)>(19, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Double, 20 },
+        }}),
+        // Slot 'onDetectionReceived'
+        QtMocHelpers::SlotData<void(const DetectionResult &)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { 0x80000000 | 22, 23 },
+        }}),
+        // Slot 'onYOLOConnectionChanged'
+        QtMocHelpers::SlotData<void(bool)>(24, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Bool, 25 },
+        }}),
+        // Slot 'onYOLOError'
+        QtMocHelpers::SlotData<void(const QString &)>(26, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 27 },
+        }}),
+        // Slot 'onDisplayTimer'
+        QtMocHelpers::SlotData<void()>(28, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onUIUpdateTimer'
+        QtMocHelpers::SlotData<void()>(29, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onMotionResultReady'
+        QtMocHelpers::SlotData<void()>(30, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -123,17 +150,22 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         switch (_id) {
         case 0: _t->on_pushButton_AddVideo_clicked(); break;
         case 1: _t->on_pushButton_selectVideo_clicked(); break;
-        case 2: _t->on_listView_videos_doubleClicked((*reinterpret_cast< std::add_pointer_t<QModelIndex>>(_a[1]))); break;
-        case 3: _t->on_doubleSpinBox_valueChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
-        case 4: _t->on_horizontalSlider_sliderMoved((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 5: _t->on_pushButton_ChooseModel_clicked(); break;
-        case 6: _t->on_pushButton_addModel_clicked(); break;
-        case 7: _t->on_comboBox_selectModel_currentIndexChanged((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 8: _t->on_pushButton_ChooseObject_clicked(); break;
-        case 9: _t->on_pushButton_AddObject_clicked(); break;
-        case 10: _t->on_pushButton_Process_clicked(); break;
-        case 11: _t->on_pushButton_Results_clicked(); break;
-        case 12: _t->showNextFrame(); break;
+        case 2: _t->on_listWidget_Videos_itemDoubleClicked((*reinterpret_cast< std::add_pointer_t<QListWidgetItem*>>(_a[1]))); break;
+        case 3: _t->on_pushButton_PlayPause_clicked(); break;
+        case 4: _t->on_doubleSpinBox_PlaybackSpeed_valueChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 5: _t->on_horizontalSlider_sliderMoved((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 6: _t->on_pushButton_SystemStatus_clicked(); break;
+        case 7: _t->on_pushButton_ChooseModel_clicked(); break;
+        case 8: _t->on_pushButton_MotionDetect_clicked(); break;
+        case 9: _t->onVideoOpened((*reinterpret_cast< std::add_pointer_t<VideoInfo>>(_a[1]))); break;
+        case 10: _t->onVideoFinished(); break;
+        case 11: _t->onProgressChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 12: _t->onDetectionReceived((*reinterpret_cast< std::add_pointer_t<DetectionResult>>(_a[1]))); break;
+        case 13: _t->onYOLOConnectionChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
+        case 14: _t->onYOLOError((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
+        case 15: _t->onDisplayTimer(); break;
+        case 16: _t->onUIUpdateTimer(); break;
+        case 17: _t->onMotionResultReady(); break;
         default: ;
         }
     }
@@ -158,14 +190,14 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 13)
+        if (_id < 18)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 13;
+        _id -= 18;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 13)
+        if (_id < 18)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 13;
+        _id -= 18;
     }
     return _id;
 }
